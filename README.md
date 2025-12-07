@@ -1,151 +1,143 @@
-# Formal Neural Architecture Synthesis - Proof of Concept
+# Formal Neural Architecture Synthesis (Research Framework)
 
-## Overview
+> **Novelty Engine**: Symbolic DAG Synthesis with Formal Guarantees.
 
-This is a Proof of Concept implementation of **Stage 1: Constraint-Compliant Architecture Generation** for the Neural Architecture Synthesis with Temporal Logic Constraints research project.
+This research project implements a **Correct-by-Construction** framework for Neural Architecture Synthesis (NAS). Unlike traditional NAS which relies on Reinforcement Learning or Evolutionary Algorithms to *search* a space, we use **SMT Solvers (Z3)** to *synthesize* architectures that are mathematically proven to satisfy structural, dimensional, and hardware constraints.
 
-## Key Features
+## 🚀 Key Research Capabilities
 
-- ✅ SMT-based constraint solving (using Z3)
-- ✅ Hardware resource modeling (FPGA-focused)
-- ✅ Architectural pattern constraints
-- ✅ Formal guarantee certificates
-- ✅ Modular and extensible design
+The "Novelty Engine" allows you to:
 
-## Architecture Guarantees
+1.  **Synthesize Arbitrary DAGs**: Instead of tuning parameters of a fixed template, the solver "invents" topologies (nodes + edges) directly in logic.
+2.  **Enforce Dimensional Validity (ShapeLogic)**: We encoded a custom **Theory of Shapes** into SMT. The solver strictly enforces tensor compatibility (e.g., ensuring `Conv2D` output shapes match `Add` layer inputs), guaranteeing every generated graph is valid.
+3.  **Specify Design Rules via Temporal Logic (TWTL)**: 
+    > *"Always ensure a Convolution is eventually followed by a Pooling layer"*
+    
+    This allows high-level design intent without manually specifying layers.
+4.  **Optimize for Hardware (Symbolic Models)**: The solver "sees" the FPGA LUT/DSP cost of every decision (as symbolic variables) and optimizes topology to fit the device budget.
 
-This implementation provides:
+---
 
-1. **Hard Formal Guarantees (Structural)**
-   - Layer connectivity patterns
-   - Architectural topology constraints
-   - Depth and width bounds
+## ⚡ Quick Start
 
-2. **Bounded Model Guarantees (Resources)**
-   - LUT utilization ≤ specified limits
-   - DSP block usage within bounds
-   - Memory footprint constraints
-   - Power consumption estimates (±15% accuracy)
-
-3. **Proof Certificates**
-   - SMT model extraction
-   - Constraint satisfaction proofs
-   - Resource bound verification
-
-## Quick Start
+### 1. Installation
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run simple example
-python examples/simple_cnn_synthesis.py
-
-# Run FPGA-constrained example
-python examples/fpga_constrained_synthesis.py
+pip install z3-solver
 ```
 
-## Example Usage
+### 2. Run the Demo
+
+We have created a demo script (`examples/dag_synthesis_demo.py`) that showcases all key features: Arbitrary Graph Synthesis, Dimensional Checking, Hardware Constraints, and Temporal Logic.
+
+```bash
+python examples/dag_synthesis_demo.py
+```
+
+**Example Output:**
+The demo finds an architecture that fits a tight 4000 LUT budget and satisfies *"Always Conv -> Eventually Pool"*:
+
+```text
+✅ Solution Found!
+Estimated Resources: LUTs=1924, DSPs=61, BRAMs=7065
+
+Synthesized Graph:
+------------------
+Node 0: INPUT    | In: 0    | Shape: (3, 32, 32)
+Node 2: POOL     | In: 0    | Shape: (3, 16, 16)  <-- Solver chose to Pool early!
+Node 3: CONV     | In: 2    | Shape: (16, 18, 18)
+Node 4: POOL     | In: 3    | Shape: (16, 9, 9)
+Node 5: OUTPUT   | In: 4    | Shape: (16, 9, 9)
+------------------
+```
+
+---
+
+## 📚 Usage Guide
+
+The core class is `DAGEncoding`. Here is how to use it to discover architectures.
+
+### 1. Basic DAG Synthesis
 
 ```python
-from formal_nas.synthesis import FormalArchitectureSynthesizer
-from formal_nas.constraints import HardwareConstraints, ArchitecturalConstraints
-from formal_nas.hardware_models import IntelStratixModel
+import z3
+from formal_nas.synthesis.dag_encoding import DAGEncoding
 
-# Define hardware platform
-fpga_model = IntelStratixModel(device="Stratix10GX2800")
+solver = z3.Solver()
+# Create an encoding for a graph with max 10 nodes
+encoding = DAGEncoding(solver, max_nodes=10, input_channels=3)
 
-# Define constraints
-hw_constraints = HardwareConstraints(
-    max_luts=100000,
-    max_dsp=500,
-    max_bram=10000,
-    max_power_watts=15.0
-)
+# Add a constraint: Must have at least one Residual Connection (Add layer)
+# OP_ADD is 3 (check source for constants)
+has_add = z3.Or([op == 3 for op in encoding.node_ops])
+solver.add(has_add)
 
-arch_constraints = ArchitecturalConstraints(
-    min_depth=3,
-    max_depth=10,
-    input_channels=3,
-    output_classes=10,
-    must_have_batch_norm=True
-)
-
-# Synthesize architectures
-synthesizer = FormalArchitectureSynthesizer(
-    hardware_model=fpga_model,
-    hardware_constraints=hw_constraints,
-    architectural_constraints=arch_constraints
-)
-
-# Generate constraint-compliant architectures
-architectures = synthesizer.synthesize(num_solutions=5)
-
-# Each architecture comes with a formal certificate
-for arch, certificate in architectures:
-    print(f"Architecture: {arch}")
-    print(f"Guaranteed LUT usage ≤ {certificate.resource_bounds['luts']}")
-    print(f"Formal proof: {certificate.smt_model}")
+if solver.check() == z3.sat:
+    model = solver.model()
+    arch = encoding.decode_architecture(model)
+    print(arch)
 ```
 
-## Project Structure
+### 2. Adding Hardware Constraints
 
-- `src/formal_nas/constraints/`: Constraint specification modules
-- `src/formal_nas/hardware_models/`: Hardware resource models
-- `src/formal_nas/synthesis/`: Core synthesis engine
-- `src/formal_nas/architectures/`: Architecture representation
-- `examples/`: Example usage scripts
-- `tests/`: Unit tests
+Pass a dictionary of resource limits. The solver will find a topology that strictly respects these bounds.
 
-## Testing
-
-```bash
-pytest tests/ -v
+```python
+# Limit FPGA resources
+limits = {
+    "luts": 5000,   # Very tight limit!
+    "dsp": 100,
+    "bram": 50000
+}
+encoding = DAGEncoding(solver, max_nodes=10, input_channels=3, resource_limits=limits)
 ```
 
-## Technical Details
+### 3. Using Temporal Logic (TWTL)
 
-### SMT Theories Used
-- Linear Integer Arithmetic (LIA) for resource constraints
-- Boolean logic for architectural rules
-- Uninterpreted functions for layer property mapping
+Use the `logic.temporal` module to enforce design patterns.
 
-### Hardware Models
-- Conservative upper-bound estimation
-- Empirically validated on Intel Stratix 10
-- Safety margins: +20% for LUTs, +15% for power
+```python
+from formal_nas.logic.temporal import Always, Eventually, Implies, IsOp, Next
 
-### Scalability
-- Suitable for architectures: 3-20 layers
-- Constraint count: up to 50 constraints
-- Synthesis time: < 1 minute for typical cases
+# Rule: "If Conv (1), then eventually Pool (2)"
+rule = Always(Implies(
+    IsOp(1), 
+    Next(Eventually(IsOp(2)))
+))
 
-## Limitations
+# Encode the rule starting at time step 0 (Node 0)
+solver.add(rule.encode(solver, encoding, 0))
+```
 
-- Currently supports only feedforward CNNs
-- Hardware models calibrated for Intel FPGAs
-- Resource predictions have ±10-15% error bounds
+---
 
-## Future Enhancements
+## 🏗️ Project Architecture
 
-- [ ] TWTL integration for sequential patterns
-- [ ] Support for residual connections
-- [ ] Dynamic architecture (RNNs, Transformers)
-- [ ] GPU hardware models
-- [ ] Model accuracy refinement loop
+```
+formal_nas/
+├── src/formal_nas/
+│   ├── synthesis/            # The Core Engine
+│   │   ├── dag_encoding.py   # Symbolic DAG & Shape Logic (The "Brain")
+│   │   └── smt_solver.py     # High-level orchestration
+│   ├── logic/                # Formal Logic Modules
+│   │   ├── shape_inference.py # Tensor dimension math
+│   │   └── temporal.py       # TWTL/LTL parser
+│   ├── hardware_models/      # Symbolic & Concrete Models
+│   │   ├── symbolic.py       # Z3-based resource estimation
+│   │   └── fpga_models.py    # Concrete Intel Stratix 10 models
+├── examples/
+│   ├── dag_synthesis_demo.py # <-- Start here
+└── tests/                    # Verification tests
+```
 
 ## Citation
 
 If you use this work, please cite:
 
-```
+```bibtex
 @article{formal_nas_2025,
-  title={Neural Architecture Synthesis with Temporal Logic Constraints},
+  title={Correct-by-Constuction Neural Architecture Synthesis with Temporal Logic},
   author={[Your Name]},
   year={2025}
 }
 ```
-
-## License
-
-MIT License
