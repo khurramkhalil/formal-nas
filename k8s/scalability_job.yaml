@@ -1,0 +1,46 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: formal-nas-scalability
+spec:
+  template:
+    spec:
+      containers:
+      - name: scalability
+        image: python:3.9-slim
+        env:
+          - name: WANDB_API_KEY
+            value: "YOUR_KEY_HERE" # Use k8s secret in production
+          - name: WANDB_PROJECT
+            value: "formal-nas-scalability"
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            apt-get update && apt-get install -y git build-essential
+            pip install z3-solver matplotlib wandb python-dotenv
+            
+            # Navigate to code
+            cd /formal-nas
+            
+            echo "Starting Scalability Analysis..."
+            python experiments/scalability_benchmark.py
+        
+        resources:
+          limits:
+            memory: 16Gi
+            cpu: 8
+            nvidia.com/gpu: 0 # CPU Only!
+          requests:
+            memory: 16Gi
+            cpu: 8
+            
+        volumeMounts:
+        - mountPath: /formal-nas
+          name: work-volume
+      
+      restartPolicy: Never
+      
+      volumes:
+      - name: work-volume
+        persistentVolumeClaim:
+          claimName: formal-nas-pvc

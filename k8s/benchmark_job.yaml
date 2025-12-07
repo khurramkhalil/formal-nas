@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: formal-nas-benchmark
+spec:
+  template:
+    spec:
+      containers:
+      - name: benchmark
+        image: pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
+        env:
+          - name: WANDB_API_KEY
+            value: "YOUR_WANDB_API_KEY_HERE" # Replace or use secret
+          - name: WANDB_PROJECT
+            value: "formal-nas-cifar10"
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            echo "Installing dependencies..."
+            pip install z3-solver hls4ml onnx wandb python-dotenv
+            
+            echo "Cloning/Updating Repo (if needed)..."
+            # Assuming code is mounted or we clone it here.
+            # Ideally, user mounts their existing PVC where code lives.
+            cd /formal-nas
+            
+            echo "Running Benchmark..."
+            python experiments/cifar10_benchmark.py
+        
+        resources:
+          limits:
+            memory: 8Gi
+            cpu: 4
+            nvidia.com/gpu: 1
+          requests:
+            memory: 8Gi
+            cpu: 4
+            nvidia.com/gpu: 1
+            
+        volumeMounts:
+        - mountPath: /formal-nas
+          name: work-volume
+      
+      restartPolicy: Never
+      
+      volumes:
+      - name: work-volume
+        persistentVolumeClaim:
+          claimName: formal-nas-pvc # UPDATE THIS with your actual PVC name

@@ -12,3 +12,4 @@ hls_project_u55c/
 # Results
 *.csv
 wandb/
+k8s/benchmark_job_secret.yaml

@@ -232,8 +232,12 @@ class DAGEncoding:
             
             # --- CASE: CONV2D ---
             # Output shape logic
+            # Use 'SAME' padding logic: P = K // 2
+            # In Z3, integer division / behaves like //
+            padding_val = self.kernel_sizes[i] / 2
+            
             conv_h, conv_w = get_conv2d_output_shape(
-                in1_h, in1_w, self.kernel_sizes[i], self.strides[i], padding=1
+                in1_h, in1_w, self.kernel_sizes[i], self.strides[i], padding=padding_val
             )
             res_conv = self.hw_model.estimate_conv2d_symbolic(
                 in_channels=in1_c,
