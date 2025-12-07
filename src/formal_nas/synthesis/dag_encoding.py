@@ -20,6 +20,7 @@ from ..logic.shape_inference import (
     is_valid_conv_config
 )
 from ..hardware_models.symbolic import SymbolicFPGAModel
+from ..hardware_models.xilinx import XilinxU55CModel
 
 class DAGEncoding:
     """
@@ -32,14 +33,19 @@ class DAGEncoding:
         max_nodes: int,
         input_channels: int,
         input_resolution: int = 32,
-        resource_limits: Optional[Dict[str, int]] = None
+        resource_limits: Optional[Dict[str, int]] = None,
+        hw_model_type: str = "symbolic" # 'symbolic' (Intel-like) or 'xilinx_u55c'
     ):
         self.solver = solver
         self.max_nodes = max_nodes
         self.input_channels = input_channels
         self.input_resolution = input_resolution
         self.resource_limits = resource_limits or {"luts": 1000000, "dsp": 5000, "bram": 10000000}
-        self.hw_model = SymbolicFPGAModel()
+        
+        if hw_model_type == "xilinx_u55c":
+            self.hw_model = XilinxU55CModel()
+        else:
+            self.hw_model = SymbolicFPGAModel()
         
         # New: Arithmetic Intensity Threshold (Ops/Byte)
         # If set in resource_limits as 'min_intensity', we enforce it.

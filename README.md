@@ -22,9 +22,10 @@ The "Novelty Engine" allows you to:
 
 ### 1. Installation
 
-```bash
-pip install z3-solver
-```
+- Python 3.8+
+- [Z3 Solver](https://github.com/Z3Prover/z3) (`pip install z3-solver`)
+- [PyTorch](https://pytorch.org/) (`pip install torch`)
+- *Optional (for FPGA Export)*: [hls4ml](https://fastmachinelearning.org/hls4ml/) (`pip install hls4ml onnx`)
 
 ### 2. Run the Demo
 
