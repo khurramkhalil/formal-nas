@@ -1,0 +1,14 @@
+# Environment Variables (Secrets)
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# Data
+data/
+hls_project_u55c/
+
+# Results
+*.csv
+wandb/
