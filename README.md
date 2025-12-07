@@ -109,6 +109,18 @@ rule = Always(Implies(
 solver.add(rule.encode(solver, encoding, 0))
 ```
 
+### 4. Advanced: Roofline & Scalability
+
+- **Roofline Model**: Enforce memory bandwidth limits by setting `min_intensity` (Ops/Byte).
+  ```python
+  limits = {"luts": 20000, "min_intensity": 50} 
+  # Solver will reject architectures that are too memory-hungry
+  ```
+
+- **Scalability**: Use `formal_nas.architectures.hierarchical` to synthesize a **Cell** and stack it into a **SuperNet** (ResNet-like).
+
+- **Baselines**: Use `formal_nas.synthesis.baselines.RandomSearchBaseline` to compare SMT efficiency against Random Search.
+
 ---
 
 ## 🏗️ Project Architecture

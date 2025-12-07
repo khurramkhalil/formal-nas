@@ -78,7 +78,9 @@ class SymbolicFPGAModel:
             'luts': luts,
             'dsp': dsp,
             'bram': bram,
-            'power': power
+            'power': power,
+            'ops': total_macs * 2, # 2 ops per MAC
+            'bytes': weights * 2 + total_macs * 2 * 2 # Crude approx: Read weights + (Read In + Write Out) per MAC
         }
 
     def estimate_pool2d_symbolic(
@@ -93,7 +95,9 @@ class SymbolicFPGAModel:
             'luts': input_height * input_width * channels * 1 / 100, # tiny cost
             'dsp': 0,
             'bram': input_width * channels * 16, # Line buffer
-            'power': input_height * input_width * channels * 1 / 1000
+            'power': input_height * input_width * channels * 1 / 1000,
+            'ops': input_height * input_width * channels, # 1 op per pixel
+            'bytes': input_height * input_width * channels * 2 # Read only
         }
     
     def estimate_add_symbolic(
@@ -108,9 +112,11 @@ class SymbolicFPGAModel:
             'luts': ops * 1 / 10, # Adder cost
             'dsp': 0,
             'bram': 0,
-            'power': ops * 1 / 1000
+            'power': ops * 1 / 1000,
+            'ops': ops,
+            'bytes': ops * 3 # Read A + Read B + Write C
         }
 
     def estimate_concat_symbolic(self) -> Dict[str, SymbolicNum]:
-        """Concat is free in hardware (wiring), cost is only downstream."""
-        return {'luts': 0, 'dsp': 0, 'bram': 0, 'power': 0}
+        """Concat is free in hardware (wiring)."""
+        return {'luts': 0, 'dsp': 0, 'bram': 0, 'power': 0, 'ops': 0, 'bytes': 0}

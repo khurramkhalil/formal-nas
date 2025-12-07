@@ -41,6 +41,10 @@ class DAGEncoding:
         self.resource_limits = resource_limits or {"luts": 1000000, "dsp": 5000, "bram": 10000000}
         self.hw_model = SymbolicFPGAModel()
         
+        # New: Arithmetic Intensity Threshold (Ops/Byte)
+        # If set in resource_limits as 'min_intensity', we enforce it.
+        self.min_intensity = self.resource_limits.get("min_intensity", 0)
+        
         # SMT Variables
         self.node_active = []    # Bool: Is node i part of the active graph?
         self.node_ops = []       # Int: Operation type Enum
@@ -61,6 +65,10 @@ class DAGEncoding:
         self.total_luts = z3.Int("total_luts")
         self.total_dsp = z3.Int("total_dsp")
         self.total_bram = z3.Int("total_bram")
+        
+        # Roofline Variables
+        self.total_ops = z3.Int("total_ops")
+        self.total_bytes = z3.Int("total_bytes")
         
         self._init_variables()
         self._add_structural_constraints()
@@ -193,11 +201,15 @@ class DAGEncoding:
         node_luts = []
         node_dsps = []
         node_brams = []
+        node_ops = []
+        node_bytes = []
         
         # Cost of Input Node is 0
         node_luts.append(z3.IntVal(0))
         node_dsps.append(z3.IntVal(0))
         node_brams.append(z3.IntVal(0))
+        node_ops.append(z3.IntVal(0))
+        node_bytes.append(z3.IntVal(0))
         
         for i in range(1, self.max_nodes):
             # Get properties of input 1
@@ -307,10 +319,24 @@ class DAGEncoding:
                            z3.If(is_concat, res_concat_brams,
                            z3.If(is_output, res_output_brams, z3.IntVal(0))))))
 
+            current_ops = z3.If(is_conv, res_conv['ops'],
+                            z3.If(is_pool, res_pool['ops'],
+                            z3.If(is_add, res_add['ops'],
+                            z3.If(is_concat, z3.IntVal(0), # Concat ops=0
+                            z3.If(is_output, z3.IntVal(0), z3.IntVal(0))))))
+
+            current_bytes = z3.If(is_conv, res_conv['bytes'],
+                            z3.If(is_pool, res_pool['bytes'],
+                            z3.If(is_add, res_add['bytes'],
+                            z3.If(is_concat, z3.IntVal(0), # Concat bytes=0
+                            z3.If(is_output, z3.IntVal(0), z3.IntVal(0))))))
+
             # Only count cost if node is active
             node_luts.append(z3.If(self.node_active[i], current_lut, z3.IntVal(0)))
             node_dsps.append(z3.If(self.node_active[i], current_dsp, z3.IntVal(0)))
             node_brams.append(z3.If(self.node_active[i], current_bram, z3.IntVal(0)))
+            node_ops.append(z3.If(self.node_active[i], current_ops, z3.IntVal(0)))
+            node_bytes.append(z3.If(self.node_active[i], current_bytes, z3.IntVal(0)))
             
         # Sum total resources
         self.solver.add(self.total_luts == z3.Sum(node_luts))
@@ -322,19 +348,35 @@ class DAGEncoding:
         self.solver.add(self.total_dsp <= self.resource_limits['dsp'])
         self.solver.add(self.total_bram <= self.resource_limits['bram'])
         
-    def decode_architecture(self, model: z3.ModelRef) -> Dict[str, Any]:
+        self.solver.add(self.total_ops == z3.Sum(node_ops))
+        self.solver.add(self.total_bytes == z3.Sum(node_bytes))
+        
+        # Roofline Constraint: Ops >= Intensity * Bytes
+        if self.min_intensity > 0:
+             self.solver.add(self.total_ops >= self.min_intensity * self.total_bytes)
+        
+    def decode_architecture(self, model: z3.ModelRef) -> List[Dict[str, Any]]:
         """Convert SMT model logic back to Python dict representation."""
-        # Simple decode for debug/demo
         arch = []
         for i in range(self.max_nodes):
             is_active = model.eval(self.node_active[i], model_completion=True)
             if z3.is_true(is_active):
                 op = model.eval(self.node_ops[i], model_completion=True).as_long()
                 in1 = model.eval(self.node_inputs1[i], model_completion=True).as_long()
+                in2 = model.eval(self.node_inputs2[i], model_completion=True).as_long()
+                
+                # Params
+                # Retrieve symbolic values if they exist (they are initialized for all i)
+                k = model.eval(self.kernel_sizes[i], model_completion=True).as_long()
+                s = model.eval(self.strides[i], model_completion=True).as_long()
+                
                 arch.append({
                     "id": i,
                     "op": op,
                     "in1": in1,
+                    "in2": in2,
+                    "k": k,
+                    "s": s,
                     "shape": (
                         model.eval(self.out_c[i], model_completion=True).as_long(),
                         model.eval(self.out_h[i], model_completion=True).as_long(),
