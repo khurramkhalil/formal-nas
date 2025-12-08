@@ -8,6 +8,8 @@ __pycache__/
 # Data
 data/
 hls_project_u55c/
+*.pth
+*.pt
 
 # Results
 *.csv
