@@ -19,7 +19,6 @@ from formal_nas.search.unified_controller import UnifiedController
 def main():
     parser = argparse.ArgumentParser(description="Run Unified Formal NAS Search")
     parser.add_argument("--iterations", type=int, default=200, help="Max search iterations")
-    parser.add_argument("--target-acc", type=float, default=90.0, help="Target accuracy (%)")
     parser.add_argument("--wandb-project", type=str, default="formal-nas-unified", help="WandB Project Name")
     args = parser.parse_args()
     
@@ -32,7 +31,7 @@ def main():
     
     print(f"=== Starting Unified Search Benchmark (7 Tasks) ===")
     print(f"Iterations: {args.iterations}")
-    print(f"Target Acc: {args.target_acc}%")
+
     
     # Set Group ID for WandB (One logical experiment)
     group_id = wandb.util.generate_id()
@@ -58,7 +57,6 @@ def main():
         # Run Search
         best_arch = controller.run_search(
             max_iterations=args.iterations, 
-            target_acc=args.target_acc, 
             task_name=task
         )
         

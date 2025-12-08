@@ -40,6 +40,8 @@ class UnifiedController:
             
         # 1. Init SMT Solver
         self.solver = z3.Solver()
+        self.solver.set("timeout", 30000) # 30 Second Timeout to prevent hangs
+        
         # Loose initial limits, will be tightened by Feedback
         self.encoding = DAGEncoding(
             self.solver, 
@@ -60,7 +62,7 @@ class UnifiedController:
         # 4. History Tracking
         self.history = []
         
-    def run_search(self, max_iterations: int = 20, target_acc: float = 90.0, task_name: str = "class_scene"):
+    def run_search(self, max_iterations: int = 20, task_name: str = "class_scene"):
         print(f"=== Unified Search Started | Task: {task_name} | Adaptive Logic Enabled ===")
         
         best_arch = None
@@ -68,22 +70,28 @@ class UnifiedController:
         
         # Efficiency assumptions (Transients)
         efficiency_assumptions = []
+        efficiency_patience = 3
         
         for i in range(max_iterations):
             print(f"\n[Iter {i}] Synthesizing...")
             
             # --- STEP 1: SPATIAL SYNTHESIS (SMT) ---
             # Use check(assumptions) to allow backtracking from efficiency constraints
-            if self.solver.check(efficiency_assumptions) != z3.sat:
+            result = self.solver.check(efficiency_assumptions)
+            
+            if result != z3.sat:
+                reason = "UNSAT" if result == z3.unsat else "TIMEOUT/UNKNOWN"
                 if efficiency_assumptions:
-                     print("  ⚠️ Efficiency Limit Reached (UNSAT). Resetting constraints to explore new regions.")
+                     print(f"  ⚠️ Efficiency Limit Reached ({reason}). Resetting constraints to explore new regions.")
                      efficiency_assumptions = []
+                     efficiency_patience = 3 # Reset patience
+                     
                      # Retry immediately without assumptions
                      if self.solver.check() != z3.sat:
                          print("  ⚠️ SMT Unsatisfiable even after reset! Search Space Exhausted.")
                          break
                 else:
-                    print("  ⚠️ SMT Unsatisfiable! Search Space Exhausted or Over-Constrained.")
+                    print(f"  ⚠️ SMT {reason}! Search Space Exhausted or Over-Constrained.")
                     break
                 
             model = self.solver.model()
@@ -111,8 +119,7 @@ class UnifiedController:
                 wandb.log({
                     "iteration": i,
                     "estimated_luts": est_luts,
-                    "learned_acc": learned_acc,
-                    "target_acc": target_acc
+                    "learned_acc": learned_acc
                 })
             
             # --- STEP 4: VERIFICATION & FEEDBACK ---
@@ -149,13 +156,20 @@ class UnifiedController:
                 _, eff_constraint = self.feedback.generate_feedback(self.solver, arch_dict, "energy", est_luts)
                 if eff_constraint is not None:
                     efficiency_assumptions.append(eff_constraint)
+                    efficiency_patience = 3 # Reset patience on success
             
             else:
-                 print(f"     [Adaptive] Exploring Search Space...")
-                 # If we drifted too far from pareto (e.g. random exploration), 
-                 # maybe we should also clear efficiency assumptions to widen search?
-                 # Optional: efficiency_assumptions = [] 
-                 # For now, let's keep them until UNSAT to fully explore this "Efficiency Cone".
+                 # If we are under efficiency constraints but Accuracy dropped, we are "Digging in the wrong place".
+                 if efficiency_assumptions:
+                     efficiency_patience -= 1
+                     print(f"     [Adaptive] Efficiency Drill yielding low accuracy. Patience: {efficiency_patience}")
+                     
+                     if efficiency_patience <= 0:
+                         print("     [Adaptive] Abandoning Efficiency Drill. Resurfacing to Global Search.")
+                         efficiency_assumptions = []
+                         efficiency_patience = 3
+                 else:
+                     print(f"     [Adaptive] Exploring Search Space...")
                 
         print(f"\n=== Search Complete ===")
         print(f"Best Accuracy Found: {best_acc:.2f}%")
