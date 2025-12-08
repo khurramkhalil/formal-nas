@@ -116,7 +116,11 @@ class DAGEncoding:
             
             self.solver.add(z3.Or(k == 1, k == 3, k == 5))
             self.solver.add(z3.Or(s == 1, s == 2))
-            self.solver.add(z3.Or(c == 16, c == 32, c == 64))
+            
+            # Smooth Pareto Front: Allow finer granularity for channels
+            # Old: {16, 32, 64} -> Discrete vertical bands
+            # New: 8, 16, 24, ... 64 (Step 8)
+            self.solver.add(z3.And(c >= 8, c <= 64, c % 8 == 0))
             
             # Shapes
             self.out_h.append(z3.Int(f"node_{i}_h"))

@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: formal-nas-unified-search
+spec:
+  template:
+    spec:
+      containers:
+      - name: unified-search
+        # USER MUST REPLACE THIS WITH THEIR IMAGE TAG
+        image: <YOUR_REGISTRY>/formal-nas:latest
+        imagePullPolicy: Always
+        command: ["python", "experiments/run_unified_search.py"]
+        env:
+          - name: WANDB_API_KEY
+            value: "c7ea31e5793ba44d95d91840a10d709378eb2d9d"
+          - name: WANDB_PROJECT
+            value: "formal-nas-unified"
+          - name: WANDB_ENTITY
+            value: "khurramkhalil"
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+            memory: 16Gi
+            cpu: 4
+          requests:
+            nvidia.com/gpu: 1
+            memory: 8Gi
+            cpu: 2
+      restartPolicy: Never

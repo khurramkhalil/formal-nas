@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: setup-code
+spec:
+  template:
+    spec:
+      containers:
+      - name: setup
+        image: python:3.9-slim
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            echo "Installing git..."
+            apt-get update && apt-get install -y git
+            
+            echo "Moving to data directory..."
+            cd /data
+            
+            if [ -d "TransNASBench" ]; then
+                echo "Repo exists. Pulling..."
+                cd TransNASBench
+                git pull
+            else
+                echo "Cloning API Code..."
+                git clone https://github.com/yawen-d/TransNASBench.git
+            fi
+            
+            echo "Done."
+            ls -F /data
+        
+        volumeMounts:
+        - mountPath: /data
+          name: data-volume
+        
+        resources:
+          limits:
+            memory: 1Gi
+            cpu: 1
+          requests:
+            memory: 500Mi
+            cpu: 500m
+            
+      restartPolicy: Never
+      
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: nasbench201-data

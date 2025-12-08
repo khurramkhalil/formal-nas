@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: transnas-download
+spec:
+  template:
+    spec:
+      containers:
+      - name: downloader
+        image: python:3.9-slim
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            echo "Installing gdown..."
+            pip install gdown
+            
+            echo "Moving to data directory..."
+            cd /data
+            
+            echo "Downloading TransNAS-Bench-101 Folder..."
+            # ID: 1HlLr2ihZX_ZuV3lJX_4i7q4w-ZBdhJ6o
+            gdown --folder https://drive.google.com/drive/folders/1HlLr2ihZX_ZuV3lJX_4i7q4w-ZBdhJ6o
+            
+            echo "Cloning API Code..."
+            git clone https://github.com/yawen-d/TransNASBench.git
+            
+            echo "Listing contents..."
+            ls -R
+        
+        volumeMounts:
+        - mountPath: /data
+          name: data-volume
+        
+        resources:
+          limits:
+            memory: 4Gi
+            cpu: 2
+          requests:
+            memory: 2Gi
+            cpu: 1
+            
+      restartPolicy: Never
+      
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: nasbench201-data
