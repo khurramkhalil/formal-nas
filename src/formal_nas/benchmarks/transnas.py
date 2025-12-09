@@ -44,6 +44,10 @@ class TransNASBenchmark:
                 self.api = TransNASBenchAPI(data_path, verbose=False)
                 self.use_mock = False
                 print("✅ TransNAS-Bench API Loaded Successfully.")
+                
+                # Debug: Print examples of valid strings
+                if 'micro' in self.api.all_arch_dict:
+                    print(f"    [Debug] Valid Arch Examples: {self.api.all_arch_dict['micro'][:3]}")
             except Exception as e:
                 print(f"❌ Failed to load API: {e}")
                 self.use_mock = True
@@ -62,71 +66,39 @@ class TransNASBenchmark:
             return self._generate_mock_trace(arch_id)
         
         # Real API Access
-        # Note: 'arch_id' from SMT might be "arch_0". 
-        # TransNAS indices are integers or specific strings (64-...).
-        # We need a mapping or just sample randomly for this demo since 
-        # our SMT encoding doesn't 1:1 map to TransNAS encoding yet.
-        # For the purpose of "Unified Loop", we will Random Sample a valid architecture 
-        # from the API to simulate the "Evaluation" of the SMT candidate.
-        # (Bridging the gap: Real SMT -> Real TransNAS ID requires an Encoding Mapper).
-        
-        # For this phase, we treat the SMT candidate as a "Query" for a random valid arch
-        # in the search space to get Real Data.
-        
         try:
-            # Randomly sample a VALID architecture index from Micro space
-            # The API exposes .all_arch_dict['micro'] -> list of names
-            micro_archs = self.api.all_arch_dict['micro']
+            # SMT 'arch_id' is now the Bit-Exact NAS-Bench-201 String
+            # e.g., "|nor_conv_3x3~0|+|nor_conv_3x3~0|...|"
+            # We query the API directly.
+            real_arch_str = arch_id
             
-            # Deterministic hash for consistency so same arch_id always gets same "Real Eval"
-            idx = hash(arch_id) % len(micro_archs)
-            real_arch_str = micro_archs[idx]
+            # Note: TransNASBenchAPI might expect different method to get index or result by string.
+            # Usually: api.get_arch_result(arch_str) is not standard?
+            # Standard is: index = api.query_index_by_arch(arch_str) -> then get_epoch_status
+            
+            # Let's inspect API usage. If 'get_epoch_status' accepts string, great.
+            # Based on docs/code: api.get_epoch_status(arch_info, ...)
+            # arch_info can be index (int) or string.
             
             trace = []
-            
-            # Query the FINAL epoch (usually ~200 or 25 depending on setup)
-            # TransNAS-Bench-101 epoch count varies by task.
-            # We will ask the API for the "best" metric directly if possible, or iterate.
-            # "get_epoch_status" asks for specific epoch.
-            # Let's try to find the max epoch by probing or assuming 20.
             
             found_data = False
             for epoch in [1, 10, 20]: # Sparse sampling
                 try:
                     info = self.api.get_epoch_status(real_arch_str, task, epoch=epoch)
                     
-                    # Extract Acc. Try 'valid_top1' (classification) or 'valid_ssim' (autoencoder) etc.
-                    # TransNAS metrics vary by task!
-                    # Classification: valid_top1
-                    # Autoencoder: valid_ssim
-                    # Segmentation: valid_mIoU
-                    # Normal: valid_cos_similarity
-                    
-                    # Extract Acc. Try 'valid_top1' (classification) or 'valid_ssim' (autoencoder) etc.
-                    # TransNAS metrics vary by task!
-                    # Classification: valid_top1
-                    # Autoencoder: valid_ssim
-                    # Segmentation: valid_mIoU
-                    # Normal: valid_cos_similarity
-                    # Room Layout: valid_neg_l1_loss (Higher is better, usually negative) or just loss
-                    
+                    # Extract Metrics (Same logic as before)
                     acc = 0.0
                     loss = info.get('train_loss', 0.0)
                     
                     if 'valid_top1' in info: acc = info['valid_top1']
-                    elif 'valid_ssim' in info: acc = info['valid_ssim'] * 100 # scale to %
+                    elif 'valid_ssim' in info: acc = info['valid_ssim'] * 100 
                     elif 'valid_mIoU' in info: acc = info['valid_mIoU']
                     elif 'valid_cos_similarity' in info: acc = info['valid_cos_similarity'] * 100
                     elif 'test_top1' in info: acc = info['test_top1']
                     
-                    # Regression Tasks (Room Layout)
+                    # Regression Tasks
                     elif 'valid_neg_l1_loss' in info: 
-                        # -0.5 -> 0.5 (Higher is better). Map to 0-100 scale?
-                        # Or just use raw value. But Controller expects > 10.0 for "Good".
-                        # Let's map small negative loss to high score. 
-                        # Score = 100 * exp(val) ? Or 100 + val?
-                        # Assume val is -0.1 (good) to -5.0 (bad).
-                        # Using 100 / (1 + abs(val))
                         val = info['valid_neg_l1_loss']
                         acc = 100.0 / (1.0 + abs(val))
                         
@@ -134,9 +106,7 @@ class TransNASBenchmark:
                          val = info['valid_l1_loss']
                          acc = 100.0 / (1.0 + val)
                          
-                    # Catch-all: If we have loss but no acc, invert loss
                     elif loss > 0 and acc == 0.0:
-                        # Fallback for regression tasks if explicit key missing
                         acc = 100.0 / (1.0 + loss)
                     
                     trace.append({
@@ -146,13 +116,14 @@ class TransNASBenchmark:
                         'energy': 100.0
                     })
                     if acc > 0: found_data = True
-                except Exception:
+                except Exception as e:
+                    # Debug: Print exception to understand why valid strings fail
+                    print(f"    [Debug] API Query Failed for Epoch {epoch}: {e}")
                     continue
             
+            # Strict Mode: return empty if synthesis generated invalid string (should not happen with correct encoding)
             if not found_data:
-                # User Request: "Delete garbage, only work on valid data"
-                # If we can't find data, we return empty list so Controller skips.
-                print(f"⚠️ API returned no 'Accuracy' compatible data for {task}/{real_arch_str}. Skipping.")
+                print(f"⚠️ API returned no data for {task}/{real_arch_str}. Skipping.")
                 return []
                 
             return trace

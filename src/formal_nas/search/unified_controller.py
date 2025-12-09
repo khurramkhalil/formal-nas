@@ -25,33 +25,29 @@ import wandb
 # Ensure src is in path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
-from formal_nas.synthesis.dag_encoding import DAGEncoding
+from formal_nas.synthesis.cell_encoding import CellEncoding
 from formal_nas.synthesis.feedback import FeedbackEngine
 from formal_nas.benchmarks.transnas import get_benchmark
 from formal_nas.stl.parametric import PSTLContext
 from formal_nas.logic.temporal import Eventually, IsOp
+# from formal_nas.synthesis.dag_encoding import DAGEncoding # Deprecated for benchmark alignment
 
 class UnifiedController:
     
     def __init__(self, use_wandb=False):
         self.use_wandb = use_wandb
         if self.use_wandb:
-            wandb.init(project="formal-nas-unified", name="unified_search_loop")
+            wandb.init(project="formal-nas-adaptive-benchmark", name="unified_search_loop")
             
         # 1. Init SMT Solver
         self.solver = z3.Solver()
         self.solver.set("timeout", 30000) # 30 Second Timeout to prevent hangs
         
-        # Loose initial limits, will be tightened by Feedback
-        self.encoding = DAGEncoding(
+        # USE CELL ENCODING (BIT-EXACT ALIGNMENT)
+        self.encoding = CellEncoding(
             self.solver, 
-            max_nodes=6, 
-            input_channels=3, 
-            resource_limits={"luts": 100000, "dsp": 5000, "bram": 5000}
+            resource_limits={"luts": 100000} # Simple limit for now
         ) 
-        
-        # Enforce basic validity (At least one Conv)
-        self.solver.add(Eventually(IsOp(1)).encode(self.solver, self.encoding, 0))
         
         # 2. Init Feedback Engine
         self.feedback = FeedbackEngine(self.encoding)
@@ -95,16 +91,24 @@ class UnifiedController:
                     break
                 
             model = self.solver.model()
-            arch_dict = self.encoding.decode_architecture(model)
-            arch_id = f"arch_{i}" # Mock ID for TransNAS
             
-            # Estimate Spatial Costs (Logic from Encoding)
+            # Use Cell Encoding Decode
+            arch_str = self.encoding.decode_architecture(model)
+            arch_dict = self.encoding.decode_to_dict(model) # Wrapper for compatibility
+            
+            # Arch ID IS the string now
+            arch_id = arch_str
+            
+            # Estimate Spatial Costs
             est_luts = self._get_estimated_luts(model)
             
             # --- STEP 2: TEMPORAL EVALUATION (TransNAS) ---
             trace = self.benchmark.get_training_trace(task=task_name, arch_id=arch_id)
             if not trace:
-                print("  Error: No trace found.")
+                print("  Error: No trace found. Blocking this architecture to avoid loop.")
+                # CRITICAL: We must block this architecture so the solver doesn't propose it again!
+                # Treat as "accuracy" violation (invalid topology)
+                self.feedback.generate_feedback(self.solver, arch_dict, "accuracy", 0.0)
                 continue
                 
             # --- STEP 3: LOGIC SYNTHESIS (P-STL) ---
@@ -194,6 +198,7 @@ class UnifiedController:
             )
         })
         print("  Pareto Plot logged to WandB.")
+    # Note: _get_estimated_luts logic remains same as long as 'total_luts' attribute exists.
     def _get_estimated_luts(self, model):
         """Helper to extract symbolic resource variable value."""
         if hasattr(self.encoding, 'total_luts'):

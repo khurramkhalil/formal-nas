@@ -18,8 +18,8 @@ from formal_nas.search.unified_controller import UnifiedController
 
 def main():
     parser = argparse.ArgumentParser(description="Run Unified Formal NAS Search")
-    parser.add_argument("--iterations", type=int, default=200, help="Max search iterations")
-    parser.add_argument("--wandb-project", type=str, default="formal-nas-unified", help="WandB Project Name")
+    parser.add_argument("--iterations", type=int, default=1000, help="Max search iterations")
+    parser.add_argument("--wandb-project", type=str, default="formal-nas-autoamatic", help="WandB Project Name")
     args = parser.parse_args()
     
     # Load Env

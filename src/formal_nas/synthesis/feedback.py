@@ -56,32 +56,30 @@ class FeedbackEngine:
     def _block_specific_architecture(self, solver: z3.Solver, arch_dict: List[Dict[str, Any]]):
         """
         Adds a Not(And(Equality)) constraint to block this SPECIFIC configuration.
-        Includes: Ops, Wiring (Edges), and Hyperparameters (Kernel, Stride, Channels).
+        Supports both DAGEncoding (Node-based) and CellEncoding (Edge-based).
         """
-        
         constraints = []
-        for node in arch_dict:
-            nid = node['id']
-            # Only constrain nodes within range
-            if nid < self.encoding.max_nodes:
-                # 1. Block Op Type
-                constraints.append(self.encoding.node_ops[nid] == node['op'])
-                
-                # 2. Block Wiring (Edges)
-                constraints.append(self.encoding.node_inputs1[nid] == node['in1'])
-                constraints.append(self.encoding.node_inputs2[nid] == node['in2'])
-                
-                # 3. Block Hyperparameters
-                # We need to access the symbolic variables list from encoding
-                # Note: node['k'] corresponds to self.encoding.kernel_sizes[nid]
-                constraints.append(self.encoding.kernel_sizes[nid] == node['k'])
-                constraints.append(self.encoding.strides[nid] == node['s'])
-                
-                # Determine channel param. 
-                # 'shape' tuple is (c, h, w). We need 'c'.
-                c = node['shape'][0]
-                constraints.append(self.encoding.out_channels_params[nid] == c)
         
-        # Block: Not( And( All Constraints ) )
-        # This means "Don't pick THIS exact combinaton again", but allow similar ones.
-        solver.add(z3.Not(z3.And(constraints)))
+        # Check if we are using CellEncoding (Edge variables)
+        if hasattr(self.encoding, 'edge_ops'):
+            # arch_dict is expected to be list of edge configs: [{'edge': index, 'op': val}, ...]
+            for item in arch_dict:
+                 idx = item['edge']
+                 val = item['op']
+                 constraints.append(self.encoding.edge_ops[idx] == val)
+                 
+        # Check if we are using DAGEncoding (Node variables)
+        elif hasattr(self.encoding, 'node_ops'):
+            for node in arch_dict:
+                nid = node['id']
+                if nid < self.encoding.max_nodes:
+                    constraints.append(self.encoding.node_ops[nid] == node['op'])
+                    constraints.append(self.encoding.node_inputs1[nid] == node['in1'])
+                    constraints.append(self.encoding.node_inputs2[nid] == node['in2'])
+                    constraints.append(self.encoding.kernel_sizes[nid] == node['k'])
+                    constraints.append(self.encoding.strides[nid] == node['s'])
+                    c = node['shape'][0]
+                    constraints.append(self.encoding.out_channels_params[nid] == c)
+        
+        if constraints:
+            solver.add(z3.Not(z3.And(constraints)))
