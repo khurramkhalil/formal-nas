@@ -16,6 +16,15 @@ The "Novelty Engine" allows you to:
     This allows high-level design intent without manually specifying layers.
 4.  **Optimize for Hardware (Symbolic Models)**: The solver "sees" the FPGA LUT/DSP cost of every decision (as symbolic variables) and optimizes topology to fit the device budget.
 
+## 🧩 Benchmark vs Search Space
+
+- **Search Space**: We use the DAG structure defined by **NAS-Bench-201** (4 Nodes, 6 Edges).
+- **Dataset (The "Oracle")**: We use **TransNAS-Bench-101**, which evaluated this exact search space on 7 diverse tasks (e.g. Segmentation, Autoencoding).
+
+**Why?**
+Using the NAS-Bench-201 *structure* allows us to synthesize valid graphs.
+Using the TransNAS-Bench-101 *data* allows us to verify performance across multiple domains, not just valid CIFAR-10 classification.
+
 ---
 
 ## ⚡ Quick Start

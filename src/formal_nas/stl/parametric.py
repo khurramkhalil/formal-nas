@@ -133,15 +133,35 @@ class ParameterSynthesizer:
 # Improved Implementation: Typed Synthesis
 # We define specific Learnable Classes.
 
+from scipy.optimize import minimize_scalar
+
 class LearnableCheck(ABC):
     @abstractmethod
     def learn(self, trace: Signal) -> float:
         pass
+        
+    def _optimize_monotonic(self, objective_fn: Callable[[float], float], bounds: Tuple[float, float]) -> float:
+        """
+        Generic optimization wrapper using SciPy.
+        Finds theta that minimizes objective_fn(theta).
+        """
+        res = minimize_scalar(
+            objective_fn, 
+            bounds=bounds, 
+            method='bounded',
+            options={'xatol': 1e-6}
+        )
+        if res.success:
+            return float(res.x)
+        return bounds[0] # Fallback
 
 class LearnableUpperBound(LearnableCheck):
     """
     Corresponds to G(val < theta).
-    Optimal theta = max(val(t)) over all t.
+    Robustness = theta - val.
+    We want the smallest theta such that Robustness >= 0 for all t.
+    equivalent to theta >= max(val).
+    Optimal theta = max(val).
     """
     def __init__(self, key: str):
         self.key = key
@@ -149,12 +169,37 @@ class LearnableUpperBound(LearnableCheck):
     def learn(self, trace: Signal) -> float:
         vals = [state.get(self.key, float('-inf')) for state in trace]
         if not vals: return 0.0
-        return max(vals) # The peak value is the tightest upper bound
+        
+        # Optimization Formulation:
+        # Minimize theta subject to: min_t(theta - val(t)) >= 0
+        # Objective: theta
+        peak = max(vals)
+        
+        # Demonstration of Optimization (User Request)
+        # We define a loss function: |theta - peak|
+        # This seems trivial for "Max", but establishes the pattern for complex logic.
+        
+        def loss(theta):
+            # Penalty if bound violated
+            # robustness = min(theta - v for v in vals)
+            # if robustness < 0: return 1e6 (Invalid)
+            # return theta (Minimize upper bound)
+            robustness = theta - peak
+            if robustness < 0: return 1e9 # Violated
+            return theta 
+            
+        # Search Range: [min(vals)-10, max(vals)+10]
+        search_bounds = (min(vals), peak + 10.0)
+        
+        return self._optimize_monotonic(loss, search_bounds)
 
 class LearnableLowerBound(LearnableCheck):
     """
     Corresponds to G(val > theta).
-    Optimal theta = min(val(t)).
+    Robustness = val - theta.
+    We want largest theta such that Robustness >= 0.
+    equivalent to theta <= min(val).
+    Optimal theta = min(val).
     """
     def __init__(self, key: str):
         self.key = key
@@ -162,12 +207,25 @@ class LearnableLowerBound(LearnableCheck):
     def learn(self, trace: Signal) -> float:
         vals = [state.get(self.key, float('inf')) for state in trace]
         if not vals: return 0.0
-        return min(vals)
+        
+        val_min = min(vals)
+        
+        # maximize theta => minimize -theta
+        def loss(theta):
+            robustness = val_min - theta
+            if robustness < 0: return 1e9 # Violated
+            return -theta
+            
+        search_bounds = (val_min - 10.0, val_min)
+        
+        res = self._optimize_monotonic(loss, search_bounds)
+        return res
 
 class LearnableEventualGoal(LearnableCheck):
     """
     Corresponds to F(val > theta).
-    Optimal theta = max(val(t)). (The best value we eventually hit).
+    We want largest theta such that max(val) >= theta.
+    Optimal theta = max(val).
     """
     def __init__(self, key: str):
         self.key = key
@@ -175,7 +233,16 @@ class LearnableEventualGoal(LearnableCheck):
     def learn(self, trace: Signal) -> float:
         vals = [state.get(self.key, float('-inf')) for state in trace]
         if not vals: return 0.0
-        return max(vals) 
+        
+        peak = max(vals)
+        
+        def loss(theta):
+            # We satisfy F(val > theta) if peak >= theta
+            if peak < theta: return 1e9
+            return -theta # Maximize theta
+            
+        search_bounds = (min(vals), peak)
+        return self._optimize_monotonic(loss, search_bounds)
 
 class PSTLContext:
     """

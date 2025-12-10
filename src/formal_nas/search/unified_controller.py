@@ -21,23 +21,34 @@ import sys
 import os
 import z3
 import wandb
+import csv
 
 # Ensure src is in path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
 from formal_nas.synthesis.cell_encoding import CellEncoding
 from formal_nas.synthesis.feedback import FeedbackEngine
-from formal_nas.benchmarks.transnas import get_benchmark
+from formal_nas.benchmarks.transnas import get_benchmark as get_transnas
+from formal_nas.benchmarks.nasbench201 import get_benchmark as get_nas201
 from formal_nas.stl.parametric import PSTLContext
 from formal_nas.logic.temporal import Eventually, IsOp
 # from formal_nas.synthesis.dag_encoding import DAGEncoding # Deprecated for benchmark alignment
 
 class UnifiedController:
     
-    def __init__(self, use_wandb=False):
+    def __init__(self, use_wandb=False, log_file=None, benchmark_type="transnas"):
         self.use_wandb = use_wandb
+        self.log_file = log_file
+        self.benchmark_type = benchmark_type
+        
+        # Initialize CSV
+        if self.log_file:
+            with open(self.log_file, "w", newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(["iteration", "arch_id", "luts", "accuracy", "is_pareto"])
+        
         if self.use_wandb:
-            wandb.init(project="formal-nas-adaptive-benchmark", name="unified_search_loop")
+            wandb.init(project="formal-nas-adaptive-benchmark", name=f"search_{self.benchmark_type}")
             
         # 1. Init SMT Solver
         self.solver = z3.Solver()
@@ -46,14 +57,20 @@ class UnifiedController:
         # USE CELL ENCODING (BIT-EXACT ALIGNMENT)
         self.encoding = CellEncoding(
             self.solver, 
-            resource_limits={"luts": 100000} # Simple limit for now
+            resource_limits={"luts": 100000},
+            benchmark_type=self.benchmark_type
         ) 
         
         # 2. Init Feedback Engine
         self.feedback = FeedbackEngine(self.encoding)
         
         # 3. Init Benchmark
-        self.benchmark = get_benchmark()
+        if self.benchmark_type == "transnas":
+            self.benchmark = get_transnas()
+        elif self.benchmark_type == "nas201":
+            self.benchmark = get_nas201()
+        else:
+            raise ValueError(f"Unknown benchmark type: {self.benchmark_type}")
         
         # 4. History Tracking
         self.history = []
@@ -117,19 +134,8 @@ class UnifiedController:
             params = ctx.synthesize(trace)
             learned_acc = params.get("peak_acc", 0.0)
             
-            print(f"  Candidate: {arch_id} | LUTs: {est_luts} | Learned Acc: {learned_acc:.2f}%")
-            
-            if self.use_wandb:
-                wandb.log({
-                    "iteration": i,
-                    "estimated_luts": est_luts,
-                    "learned_acc": learned_acc
-                })
-            
             # --- STEP 4: VERIFICATION & FEEDBACK ---
             # --- STEP 4: ADAPTIVE PARETO FEEDBACK ---
-            # Instead of a hard threshold (e.g. 90%), we determine "Success" adaptively.
-            # WE use P-STL learned parameter 'learned_acc' to drive the search.
             
             is_pareto = False
             if learned_acc > best_acc:
@@ -137,6 +143,21 @@ class UnifiedController:
                 best_arch = arch_dict
                 is_pareto = True
                 print(f"  🔥 NEW BEST ACCURACY: {best_acc:.2f}%")
+
+            if self.use_wandb:
+                 wd_log = {
+                    "iteration": i,
+                    "estimated_luts": est_luts,
+                    "learned_acc": learned_acc,
+                    "is_pareto": is_pareto
+                }
+                 wandb.log(wd_log)
+            
+            # CSV Logging
+            if self.log_file:
+                with open(self.log_file, "a", newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow([i, arch_id, est_luts, learned_acc, is_pareto])
             
             # Record history
             self.history.append({
@@ -145,6 +166,7 @@ class UnifiedController:
                 "accuracy": learned_acc,
                 "pareto": is_pareto
             })
+
             
             # Feedback Strategy:
             # 1. ALWAYS block the exact current topology to force exploration (Tabu Search).

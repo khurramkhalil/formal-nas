@@ -17,9 +17,14 @@ from typing import Dict, List, Any, Optional
 # We assume the user clones the repo to /formal-nas/TransNASBench or similar
 # causing 'api' module to be available if PYTHONPATH is set.
 try:
+    # Attempt 1: Standard (if root is in path)
     from api import TransNASBenchAPI
 except ImportError:
-    TransNASBenchAPI = None
+    try:
+        # Attempt 2: Nested (if api is a directory with api.py without init)
+        from api.api import TransNASBenchAPI
+    except ImportError:
+        TransNASBenchAPI = None
 
 class TransNASBenchmark:
     """
@@ -63,7 +68,8 @@ class TransNASBenchmark:
         Returns a time-series trace of training metrics.
         """
         if self.use_mock:
-            return self._generate_mock_trace(arch_id)
+             # Mock data disabled via user request.
+             raise RuntimeError("TransNAS API not loaded and Mock Data is disabled.")
         
         # Real API Access
         try:
