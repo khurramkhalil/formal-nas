@@ -82,15 +82,27 @@ class CellEncoding:
             
             # NAS-Bench-201 Specific (AvgPool)
             if self.benchmark_type == "nas201":
-                 # AvgPool cost ~ Identity (low logic, some buf)
+                 # AvgPool cost
                  c = z3.If(op_var == 4, 100, c)
-                 
             costs.append(c)
             
         self.solver.add(self.total_luts == z3.Sum(costs))
         
-        if self.resource_limits and "luts" in self.resource_limits:
-             self.solver.add(self.total_luts <= self.resource_limits["luts"])
+        # DSP Logic (Simplified Proxy)
+        # rcb_3x3 (ID 3) uses DSPs? Let's assume 1 per op for demo.
+        dsp_costs = []
+        for op_var in self.edge_ops:
+            d = z3.If(op_var == 3, 1, 0) # Only 3x3 uses DSP (hypothetically)
+            dsp_costs.append(d)
+            
+        self.total_dsp = z3.Int("total_dsp")
+        self.solver.add(self.total_dsp == z3.Sum(dsp_costs))
+        
+        if self.resource_limits:
+            if "luts" in self.resource_limits:
+                 self.solver.add(self.total_luts <= self.resource_limits["luts"])
+            if "dsp" in self.resource_limits:
+                 self.solver.add(self.total_dsp <= self.resource_limits["dsp"])
 
     def decode_architecture(self, model: z3.ModelRef) -> str:
         """

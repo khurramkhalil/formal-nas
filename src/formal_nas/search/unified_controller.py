@@ -36,7 +36,7 @@ from formal_nas.logic.temporal import Eventually, IsOp
 
 class UnifiedController:
     
-    def __init__(self, use_wandb=False, log_file=None, benchmark_type="transnas"):
+    def __init__(self, use_wandb=False, log_file=None, benchmark_type="transnas", project_name="formal-nas-adaptive-benchmark"):
         self.use_wandb = use_wandb
         self.log_file = log_file
         self.benchmark_type = benchmark_type
@@ -48,9 +48,13 @@ class UnifiedController:
                 writer.writerow(["iteration", "arch_id", "luts", "accuracy", "is_pareto"])
         
         if self.use_wandb:
-            wandb.init(project="formal-nas-adaptive-benchmark", name=f"search_{self.benchmark_type}")
+            wandb.init(project=project_name, name=f"search_{self.benchmark_type}")
             
         # 1. Init SMT Solver
+        # Enable Parallel Solving (Utilization of multiple cores)
+        z3.set_param('parallel.enable', True)
+        z3.set_param('parallel.threads', 4)
+        
         self.solver = z3.Solver()
         self.solver.set("timeout", 30000) # 30 Second Timeout to prevent hangs
         

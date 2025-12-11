@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: formal-nas-full-suite
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+      - name: benchmark
+        image: khurramkhalil/formal-nas:latest
+        imagePullPolicy: Always
+        command: ["/app/scripts/entrypoint_full_benchmark.sh"]
+        env:
+        - name: WANDB_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: wandb-secret
+              key: WANDB_API_KEY
+        resources:
+          limits:
+            memory: "8Gi"
+            cpu: "4"
+          requests:
+            memory: "4Gi"
+            cpu: "2"
+      restartPolicy: Never

@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: formal-nas-fpga-export
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+      - name: fpga-search
+        image: khurramkhalil/formal-nas:latest
+        imagePullPolicy: Always
+        command: ["python", "experiments/run_fpga_search.py"]
+        args: ["--iterations", "20", "--dsp-limit", "3"]
+        env:
+        - name: WANDB_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: wandb-secret
+              key: WANDB_API_KEY
+        resources:
+          limits:
+            memory: "28Gi"
+            cpu: "4"
+          requests:
+            memory: "24Gi"
+            cpu: "2"
+      restartPolicy: Never
