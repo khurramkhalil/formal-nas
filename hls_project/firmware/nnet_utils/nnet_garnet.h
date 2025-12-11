@@ -69,7 +69,7 @@ inline
 
 template <class CONFIG_T> typename CONFIG_T::edge_weight_t compute_edge_weight(typename CONFIG_T::distance_t distance) {
     if (CONFIG_T::is_stack) {
-        #pragma HLS INLINE OFF
+        //#pragma HLS INLINE OFF
     }
 #ifdef __SYNTHESIS__
     typename CONFIG_T::edge_weight_t edge_weights_table[1 << CONFIG_T::distance_width];
@@ -92,14 +92,14 @@ template <class CONFIG_T> typename CONFIG_T::edge_weight_t compute_edge_weight(t
 template <class dividend_T, class exponent_T>
 inline typename std::enable_if<std::is_class<dividend_T>::value, dividend_T>::type normalize_log2(dividend_T dividend,
                                                                                                   exponent_T exponent) {
-    #pragma HLS INLINE
+    //#pragma HLS INLINE
     return dividend >> exponent;
 }
 
 template <class dividend_T, class exponent_T>
 inline typename std::enable_if<not std::is_class<dividend_T>::value, dividend_T>::type normalize_log2(dividend_T dividend,
                                                                                                       exponent_T exponent) {
-    #pragma HLS INLINE
+    //#pragma HLS INLINE
     return dividend / std::pow(2., exponent);
 }
 
@@ -110,7 +110,7 @@ template <class CONFIG_T, class E = typename CONFIG_T::edge_weight_t> struct Mea
     typename CONFIG_T::aggr_t weighted_feature_mean[CONFIG_T::n_aggregators * CONFIG_T::n_in_features];
 
     Means() {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
         #pragma HLS ARRAY_PARTITION variable=edge_weight_mean complete
         #pragma HLS ARRAY_PARTITION variable=weighted_feature_mean complete
         #pragma HLS UNROLL region
@@ -128,11 +128,11 @@ template <class CONFIG_T, class E = typename CONFIG_T::edge_weight_t> struct Mea
     }
 
     void set_weight(unsigned, edge_weight_t const &) {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
     }
 
     void add_means_normalized(Means<CONFIG_T, edge_weight_t> const &local) {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
         // Always called within a pipelined region - no UNROLL needed
 
         unsigned const log2_unroll_factor = CONFIG_T::n_vertices_width - CONFIG_T::log2_reuse_factor;
@@ -151,7 +151,7 @@ template <class CONFIG_T, class E = typename CONFIG_T::edge_weight_t> struct Mea
 
     template <class nvtx_T, class arrays_T, class T = CONFIG_T>
     typename std::enable_if<T::mean_by_nvert>::type set_means_normalized(nvtx_T const nvtx, arrays_T const &accum) {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
         #pragma HLS UNROLL region
 
         // accum comes divided by unroll factor
@@ -172,7 +172,7 @@ template <class CONFIG_T, class E = typename CONFIG_T::edge_weight_t> struct Mea
 
     template <class nvtx_T, class arrays_T, class T = CONFIG_T>
     typename std::enable_if<not T::mean_by_nvert>::type set_means_normalized(nvtx_T const nvtx, arrays_T const &accum) {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
         #pragma HLS UNROLL region
 
     Aggregators:
@@ -196,13 +196,13 @@ template <class CONFIG_T, class E = typename CONFIG_T::edge_weight_t> struct Wei
     edge_weight_t edge_weights[CONFIG_T::n_vertices * CONFIG_T::n_aggregators];
 
     WeightsAndMeans() : Means<CONFIG_T, E>() {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
         unsigned const reshape_factor = CONFIG_T::n_aggregators * (CONFIG_T::n_vertices / CONFIG_T::reuse_factor);
         #pragma HLS ARRAY_PARTITION variable=edge_weights cyclic factor=reshape_factor
     }
 
     void set_weight(unsigned iva, edge_weight_t const &weight) {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
         edge_weights[iva] = weight;
     }
 };
@@ -216,7 +216,7 @@ struct OutputBiasNormalizer<CONFIG_T, nvtx_T, typename std::enable_if<CONFIG_T::
     biases_t const (&output_biases)[CONFIG_T::n_out_features];
 
     OutputBiasNormalizer(nvtx_T const) : output_biases{CONFIG_T::output_transform_biases} {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
     }
 };
 
@@ -245,10 +245,10 @@ template <class CONFIG_T, class data_T> struct InputDataGetter {
     data_T const *dataref;
 
     InputDataGetter(data_T const *d) : dataref{d} {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
     }
     data_T const &get(unsigned iv, unsigned ix) const {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
         unsigned const ivx = iv * CONFIG_T::n_in_features + ix;
         return dataref[ivx];
     }
@@ -260,10 +260,10 @@ template <class CONFIG_T, class data_T> struct SingleVertexDataGetter {
     data_T const (&dataref)[CONFIG_T::n_in_features];
 
     SingleVertexDataGetter(data_T const (&d)[CONFIG_T::n_in_features]) : dataref{d} {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
     }
     data_T const &get(unsigned, unsigned ix) const {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
         return dataref[ix];
     }
 };
@@ -274,10 +274,10 @@ template <class CONFIG_T, class res_T> struct OutputResSetter {
     res_T *resref;
 
     OutputResSetter(res_T *r) : resref{r} {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
     }
     void set(unsigned iv, unsigned io, res_T const &acc) {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
         unsigned const ivo = iv * CONFIG_T::n_out_features + io;
         resref[ivo] = acc;
     }
@@ -289,10 +289,10 @@ template <class CONFIG_T, class res_T> struct SingleVertexResSetter {
     res_T (&resref)[CONFIG_T::n_out_features];
 
     SingleVertexResSetter(res_T (&r)[CONFIG_T::n_out_features]) : resref{r} {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
     }
     void set(unsigned, unsigned io, res_T const &acc) {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
         resref[io] = acc;
     }
 };
@@ -300,7 +300,7 @@ template <class CONFIG_T, class res_T> struct SingleVertexResSetter {
 template <class CONFIG_T, class data_getter_T, class arrays_local_T, class arrays_T>
 inline void compute_weights_aggregates(data_getter_T const &data_getter, unsigned iv, arrays_local_T &arrays_local,
                                        arrays_T &arrays) {
-    #pragma HLS INLINE
+    //#pragma HLS INLINE
 
 Aggregators:
     for (unsigned ia = 0; ia < CONFIG_T::n_aggregators; ++ia) {
@@ -336,7 +336,7 @@ Aggregators:
 
 template <class CONFIG_T, class arrays_T>
 inline typename CONFIG_T::aggr_t compute_output_base_core(arrays_T const &arrays, unsigned io, unsigned ia) {
-    #pragma HLS INLINE
+    //#pragma HLS INLINE
     #pragma HLS UNROLL region
 
     unsigned const ioa = io * CONFIG_T::n_aggregators + ia;
@@ -356,7 +356,7 @@ InFeatures:
 template <class CONFIG_T, class arrays_T>
 inline void compute_output_base(arrays_T const &arrays,
                                 typename CONFIG_T::aggr_t output_base[CONFIG_T::n_out_features * CONFIG_T::n_aggregators]) {
-    #pragma HLS INLINE
+    //#pragma HLS INLINE
     #pragma HLS UNROLL region
 
 OutFeatures:
@@ -375,7 +375,7 @@ inline void
 compute_vertex_output(arrays_T const &arrays, unsigned iv,
                       typename CONFIG_T::aggr_t const output_base[CONFIG_T::n_out_features * CONFIG_T::n_aggregators],
                       res_setter_T &res_setter) {
-    #pragma HLS INLINE
+    //#pragma HLS INLINE
 
     typename arrays_T::edge_weight_t edge_weights[CONFIG_T::n_aggregators];
     #pragma HLS ARRAY_PARTITION variable=edge_weights complete
@@ -537,7 +537,7 @@ template <class prev_layer_t, class current_layer_t, class last_layer_t, class n
           class last_arrays_T>
 inline typename std::enable_if<std::is_same<current_layer_t, last_layer_t>::value>::type
 sublayer(nvtx_T const nvtx, prev_arrays_T const &prev_arrays, last_arrays_T &last_arrays) {
-    #pragma HLS INLINE
+    //#pragma HLS INLINE
 
     distribute_aggregate<prev_layer_t, current_layer_t>(nvtx, prev_arrays, last_arrays);
 }
@@ -546,7 +546,7 @@ template <class prev_layer_t, class current_layer_t, class last_layer_t, class n
           class last_arrays_T>
 inline typename std::enable_if<not std::is_same<current_layer_t, last_layer_t>::value>::type
 sublayer(nvtx_T const nvtx, prev_arrays_T const &prev_arrays, last_arrays_T &last_arrays) {
-    #pragma HLS INLINE
+    //#pragma HLS INLINE
 
     WeightsAndMeans<current_layer_t> current_arrays;
 
@@ -604,7 +604,7 @@ template <class data_T, class nvtx_T, class res_T, typename CONFIG_T>
 typename std::enable_if<CONFIG_T::output_collapse == CONFIG_T::no_collapse>::type
 garnet(data_T const data[CONFIG_T::n_vertices * CONFIG_T::n_in_features], nvtx_T const nvtx[1],
        res_T res[CONFIG_T::n_vertices * CONFIG_T::n_out_features]) {
-    #pragma HLS DATAFLOW
+    //#pragma HLS DATAFLOW
 
     garnet_utils::WeightsAndMeans<CONFIG_T> arrays;
 
@@ -618,7 +618,7 @@ template <class data_T, class nvtx_T, class res_T, class CONFIG_T>
 typename std::enable_if<CONFIG_T::output_collapse == CONFIG_T::collapse_mean>::type
 garnet(data_T const data[CONFIG_T::n_vertices * CONFIG_T::n_in_features], nvtx_T const nvtx[1],
        res_T res[CONFIG_T::n_out_features]) {
-    #pragma HLS DATAFLOW
+    //#pragma HLS DATAFLOW
 
     garnet_utils::Means<CONFIG_T> arrays;
 
@@ -634,7 +634,7 @@ template <class data_T, class nvtx_T, class res_T, class CONFIG_T>
 typename std::enable_if<CONFIG_T::output_collapse == CONFIG_T::no_collapse>::type
 garnet_stack(data_T const data[CONFIG_T::n_vertices * CONFIG_T::n_in_features], nvtx_T const nvtx[1],
              res_T res[CONFIG_T::n_vertices * CONFIG_T::n_out_features]) {
-    #pragma HLS DATAFLOW
+    //#pragma HLS DATAFLOW
 
     typedef typename CONFIG_T::template sublayer_t<0> first_layer_t;
     unsigned const ilast = CONFIG_T::n_sublayers - 1;
@@ -656,7 +656,7 @@ template <class data_T, class nvtx_T, class res_T, class CONFIG_T>
 typename std::enable_if<CONFIG_T::output_collapse == CONFIG_T::collapse_mean>::type
 garnet_stack(data_T const data[CONFIG_T::n_vertices * CONFIG_T::n_in_features], nvtx_T const nvtx[1],
              res_T res[CONFIG_T::n_out_features]) {
-    #pragma HLS DATAFLOW
+    //#pragma HLS DATAFLOW
 
     typedef typename CONFIG_T::template sublayer_t<0> first_layer_t;
     unsigned const ilast = CONFIG_T::n_sublayers - 1;

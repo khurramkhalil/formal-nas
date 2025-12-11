@@ -2,10 +2,10 @@
 #    HLS4ML
 #################
 array set opt {
-    reset      0
-    csim       1
+    reset      1
+    csim       0
     synth      1
-    cosim      1
+    cosim      0
     validation 1
     export     0
     vsynth     0
@@ -161,7 +161,6 @@ if {$opt(reset)} {
 } else {
     open_solution "solution1"
 }
-catch {config_array_partition -maximum_size $maximum_size}
 config_compile -name_max_length 80
 set_part $part
 config_schedule -enable_dsp_full_reg=false
@@ -172,7 +171,7 @@ set_clock_uncertainty $clock_uncertainty default
 if {$opt(csim)} {
     puts "***** C SIMULATION *****"
     set time_start [clock clicks -milliseconds]
-    csim_design
+#csim_design
     set time_end [clock clicks -milliseconds]
     report_time "C SIMULATION" $time_start $time_end
 }

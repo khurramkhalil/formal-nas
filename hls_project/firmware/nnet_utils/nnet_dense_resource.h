@@ -30,7 +30,7 @@ void dense_resource_rf_leq_nin(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::
     #pragma HLS ARRAY_PARTITION variable=biases complete
 
     if (CONFIG_T::reuse_factor > 1) {
-        #pragma HLS RESOURCE variable=weights core=ROM_nP_BRAM
+        //#pragma HLS RESOURCE variable=weights core=ROM_nP_BRAM
     }
 
     typename CONFIG_T::accum_t acc[CONFIG_T::n_out];
@@ -104,7 +104,7 @@ void dense_resource_rf_gt_nin_rem0(data_T data[CONFIG_T::n_in], res_T res[CONFIG
     #pragma HLS ARRAY_PARTITION variable=biases complete
 
     if (CONFIG_T::reuse_factor > 1) {
-        #pragma HLS RESOURCE variable=weights core=ROM_nP_BRAM
+        //#pragma HLS RESOURCE variable=weights core=ROM_nP_BRAM
     }
 
     typename CONFIG_T::accum_t acc[CONFIG_T::n_out];
@@ -186,7 +186,7 @@ void dense_resource_rf_gt_nin(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n
     #pragma HLS ARRAY_PARTITION variable=biases complete
 
     if (CONFIG_T::reuse_factor > 1) {
-        #pragma HLS RESOURCE variable=weights core=ROM_nP_BRAM
+        //#pragma HLS RESOURCE variable=weights core=ROM_nP_BRAM
     }
 
     typename CONFIG_T::accum_t acc[CONFIG_T::n_out];
@@ -256,7 +256,7 @@ void dense_resource(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_out],
                     typename CONFIG_T::weight_t weights[CONFIG_T::n_in * CONFIG_T::n_out],
                     typename CONFIG_T::bias_t biases[CONFIG_T::n_out]) {
 
-    #pragma HLS INLINE recursive
+    //#pragma HLS INLINE recursive
 
     if (CONFIG_T::reuse_factor <= CONFIG_T::n_in) {
         dense_resource_rf_leq_nin<data_T, res_T, CONFIG_T>(data, res, weights, biases);

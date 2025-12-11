@@ -14,7 +14,7 @@ enum class conv_implementation { linebuffer = 0, encoded = 1 };
 //       Encoded Implementation (Vlad's)
 // *************************************************
 template <unsigned K, unsigned S, unsigned W> unsigned scale_index_K_gte_S(const unsigned idx) {
-    #pragma HLS INLINE
+    //#pragma HLS INLINE
 
     if (idx < K - S) {
         return idx;
@@ -35,7 +35,7 @@ template <unsigned K, unsigned S, unsigned W> unsigned scale_index_K_gte_S(const
 }
 
 template <unsigned K, unsigned S, unsigned W> unsigned scale_index_K_lt_S(const unsigned idx) {
-    #pragma HLS INLINE
+    //#pragma HLS INLINE
 
     if (idx < S - K) {
         return idx;
@@ -58,7 +58,7 @@ template <unsigned K, unsigned S, unsigned W> unsigned scale_index_K_lt_S(const 
 template <unsigned K, unsigned S, unsigned W> class scale_index_regular {
   public:
     static unsigned scale_index(const unsigned idx) {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
 
         if (K >= S) {
             return scale_index_K_gte_S<K, S, W>(idx);
@@ -71,7 +71,7 @@ template <unsigned K, unsigned S, unsigned W> class scale_index_regular {
 template <unsigned K, unsigned S, unsigned W> class scale_index_unscaled {
   public:
     static unsigned scale_index(const unsigned idx) {
-        #pragma HLS INLINE
+        //#pragma HLS INLINE
         return idx;
     }
 };
@@ -81,7 +81,7 @@ void mult_buffer(hls::stream<typename data_T::value_type> data_window[CONFIG_T::
                  res_T &res_pack, hls::stream<res_T> &res_stream, unsigned &outputs_ready,
                  typename CONFIG_T::weight_t weights[CONFIG_T::kernel_size * CONFIG_T::n_chan * CONFIG_T::n_filt],
                  typename CONFIG_T::bias_t biases[CONFIG_T::n_filt]) {
-    #pragma HLS INLINE
+    //#pragma HLS INLINE
 
     typename data_T::value_type data[CONFIG_T::kernel_size * CONFIG_T::n_chan];
     #pragma HLS ARRAY_PARTITION variable = data complete
@@ -94,7 +94,7 @@ InitData:
         data[id] = data_window[id].read();
     }
 
-    #pragma HLS INLINE recursive
+    //#pragma HLS INLINE recursive
     CONFIG_T::mult_config::template kernel<typename data_T::value_type, typename res_T::value_type,
                                            typename CONFIG_T::mult_config>::dense(data, res, weights, biases);
 
@@ -126,7 +126,7 @@ void compute_output_encoded(const data_T &in_elem,
                             hls::stream<res_T> &res, res_T &res_pack, unsigned &outputs_ready,
                             typename CONFIG_T::weight_t weights[CONFIG_T::kernel_size * CONFIG_T::n_chan * CONFIG_T::n_filt],
                             typename CONFIG_T::bias_t biases[CONFIG_T::n_filt], ap_uint<CONFIG_T::kernel_size> *pixel_idx) {
-    #pragma HLS INLINE
+    //#pragma HLS INLINE
 
 MultLoop:
     for (unsigned p = 0; p < data_T::size / CONFIG_T::n_chan; p++) {
@@ -255,7 +255,7 @@ void compute_output_buffer_2d(
     hls::stream<res_T> &res_stream,
     typename CONFIG_T::weight_t weights[CONFIG_T::kernel_size * CONFIG_T::n_chan * CONFIG_T::n_filt],
     typename CONFIG_T::bias_t biases[CONFIG_T::n_filt]) {
-    #pragma HLS INLINE OFF
+    //#pragma HLS INLINE OFF
 
     // Thresholds
     const static int lShiftX = CONFIG_T::filt_width - 1;
@@ -284,7 +284,7 @@ void compute_output_buffer_2d(
     if ((sX - lShiftX) == 0 && (sY - lShiftY) == 0 && pY > lShiftY - 1 && pX > lShiftX - 1) {
 
         // Dense multiply
-        // #pragma HLS INLINE recursive
+        // //#pragma HLS INLINE recursive
         CONFIG_T::mult_config::template kernel<typename data_T::value_type, typename res_T::value_type,
                                                typename CONFIG_T::mult_config>::dense(kernel_data, res_out, weights, biases);
 
@@ -325,7 +325,7 @@ void compute_output_buffer_1d(
     const data_T &in_elem, hls::stream<res_T> &res_stream,
     typename CONFIG_T::weight_t weights[CONFIG_T::kernel_size * CONFIG_T::n_chan * CONFIG_T::n_filt],
     typename CONFIG_T::bias_t biases[CONFIG_T::n_filt]) {
-    #pragma HLS INLINE OFF
+    //#pragma HLS INLINE OFF
 
     // Thresholds
     const static int lShiftX = CONFIG_T::filt_width - 1;
@@ -350,7 +350,7 @@ void compute_output_buffer_1d(
     if ((sX - lShiftX) == 0 && pX > lShiftX - 1) {
 
         // Dense multiply
-        // #pragma HLS INLINE recursive
+        // //#pragma HLS INLINE recursive
         CONFIG_T::mult_config::template kernel<typename data_T::value_type, typename res_T::value_type,
                                                typename CONFIG_T::mult_config>::dense(kernel_data, res_out, weights, biases);
 

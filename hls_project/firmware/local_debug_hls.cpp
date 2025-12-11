@@ -13,7 +13,7 @@ void local_debug_hls(
     #pragma HLS ARRAY_RESHAPE variable=x complete dim=0
     #pragma HLS ARRAY_PARTITION variable=layer20_out complete dim=0
     #pragma HLS INTERFACE ap_vld port=x,layer20_out 
-    #pragma HLS DATAFLOW
+    ////////#pragma HLS DATAFLOW
 
     // hls-fpga-machine-learning insert load weights
 #ifndef __SYNTHESIS__

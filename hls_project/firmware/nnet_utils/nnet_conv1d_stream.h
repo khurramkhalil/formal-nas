@@ -62,7 +62,7 @@ void conv_1d_buffer_cl(hls::stream<data_T> &data, hls::stream<res_T> &res,
     assert(CONFIG_T::pad_left == 0 && CONFIG_T::pad_right == 0);
 
     if (CONFIG_T::strategy == nnet::resource_unrolled && CONFIG_T::reuse_factor > 1) {
-        #pragma HLS allocation instances=compute_output_buffer_1d limit=1 function
+        //#pragma HLS allocation instances=compute_output_buffer_1d limit=1 function
     }
 
 ReadInputWidth:

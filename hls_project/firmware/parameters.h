@@ -62,15 +62,15 @@ const unsigned* const config22::perm_strides = config22_perm_strides;
 struct config2_mult : nnet::dense_config {
     static const unsigned n_in = 27;
     static const unsigned n_out = 16;
-    static const unsigned reuse_factor = 1;
-    static const unsigned strategy = nnet::latency;
+    static const unsigned reuse_factor = 108;
+    static const unsigned strategy = nnet::resource;
     static const unsigned n_zeros = 0;
     static const unsigned multiplier_limit = DIV_ROUNDUP(n_in * n_out, reuse_factor) - n_zeros / reuse_factor;
     typedef model_default_t accum_t;
     typedef stem_0_bias_t bias_t;
     typedef stem_0_weight_t weight_t;
     template<class data_T, class res_T, class CONFIG_T>
-    using kernel = nnet::DenseLatency<data_T, res_T, CONFIG_T>;
+    using kernel = nnet::DenseResource_rf_gt_nin_rem0<data_T, res_T, CONFIG_T>;
     template<class x_T, class y_T>
     using product = nnet::product::mult<x_T, y_T>;
 };
@@ -91,12 +91,12 @@ struct config2 : nnet::conv2d_config {
     static const unsigned stride_width = 1;
     static const unsigned out_height = 32;
     static const unsigned out_width = 32;
-    static const unsigned reuse_factor = 1;
+    static const unsigned reuse_factor = 108;
     static const unsigned n_zeros = 0;
     static const unsigned multiplier_limit =
         DIV_ROUNDUP(kernel_size * n_chan * n_filt, reuse_factor) - n_zeros / reuse_factor;
     static const bool store_weights_in_bram = false;
-    static const unsigned strategy = nnet::latency;
+    static const unsigned strategy = nnet::resource;
     static const nnet::conv_implementation implementation = nnet::conv_implementation::linebuffer;
     static const unsigned min_height = 32;
     static const unsigned min_width = 32;
@@ -121,7 +121,7 @@ struct relu_config4 : nnet::activ_config {
     static const unsigned n_in = 16384;
     static const unsigned table_size = 1024;
     static const unsigned io_type = nnet::io_parallel;
-    static const unsigned reuse_factor = 1;
+    static const unsigned reuse_factor = 128;
     typedef cell_edges_1_op_0_table_t table_t;
 };
 
@@ -129,15 +129,15 @@ struct relu_config4 : nnet::activ_config {
 struct config5_mult : nnet::dense_config {
     static const unsigned n_in = 144;
     static const unsigned n_out = 16;
-    static const unsigned reuse_factor = 1;
-    static const unsigned strategy = nnet::latency;
+    static const unsigned reuse_factor = 144;
+    static const unsigned strategy = nnet::resource;
     static const unsigned n_zeros = 0;
     static const unsigned multiplier_limit = DIV_ROUNDUP(n_in * n_out, reuse_factor) - n_zeros / reuse_factor;
     typedef model_default_t accum_t;
     typedef cell_edges_1_op_1_bias_t bias_t;
     typedef cell_edges_1_op_1_weight_t weight_t;
     template<class data_T, class res_T, class CONFIG_T>
-    using kernel = nnet::DenseLatency<data_T, res_T, CONFIG_T>;
+    using kernel = nnet::DenseResource_rf_leq_nin<data_T, res_T, CONFIG_T>;
     template<class x_T, class y_T>
     using product = nnet::product::mult<x_T, y_T>;
 };
@@ -158,12 +158,12 @@ struct config5 : nnet::conv2d_config {
     static const unsigned stride_width = 1;
     static const unsigned out_height = 32;
     static const unsigned out_width = 32;
-    static const unsigned reuse_factor = 1;
+    static const unsigned reuse_factor = 144;
     static const unsigned n_zeros = 0;
     static const unsigned multiplier_limit =
         DIV_ROUNDUP(kernel_size * n_chan * n_filt, reuse_factor) - n_zeros / reuse_factor;
     static const bool store_weights_in_bram = false;
-    static const unsigned strategy = nnet::latency;
+    static const unsigned strategy = nnet::resource;
     static const nnet::conv_implementation implementation = nnet::conv_implementation::linebuffer;
     static const unsigned min_height = 32;
     static const unsigned min_width = 32;
@@ -188,7 +188,7 @@ struct relu_config7 : nnet::activ_config {
     static const unsigned n_in = 16384;
     static const unsigned table_size = 1024;
     static const unsigned io_type = nnet::io_parallel;
-    static const unsigned reuse_factor = 1;
+    static const unsigned reuse_factor = 128;
     typedef cell_edges_3_op_0_table_t table_t;
 };
 
@@ -196,15 +196,15 @@ struct relu_config7 : nnet::activ_config {
 struct config24_mult : nnet::dense_config {
     static const unsigned n_in = 16;
     static const unsigned n_out = 16;
-    static const unsigned reuse_factor = 1;
-    static const unsigned strategy = nnet::latency;
+    static const unsigned reuse_factor = 128;
+    static const unsigned strategy = nnet::resource;
     static const unsigned n_zeros = 0;
     static const unsigned multiplier_limit = DIV_ROUNDUP(n_in * n_out, reuse_factor) - n_zeros / reuse_factor;
     typedef model_default_t accum_t;
     typedef cell_edges_3_op_1_bias_t bias_t;
     typedef cell_edges_3_op_1_weight_t weight_t;
     template<class data_T, class res_T, class CONFIG_T>
-    using kernel = nnet::DenseLatency<data_T, res_T, CONFIG_T>;
+    using kernel = nnet::DenseResource_rf_gt_nin_rem0<data_T, res_T, CONFIG_T>;
     template<class x_T, class y_T>
     using product = nnet::product::mult<x_T, y_T>;
 };
@@ -225,12 +225,12 @@ struct config24 : nnet::conv2d_config {
     static const unsigned stride_width = 1;
     static const unsigned out_height = 32;
     static const unsigned out_width = 32;
-    static const unsigned reuse_factor = 1;
+    static const unsigned reuse_factor = 128;
     static const unsigned n_zeros = 0;
     static const unsigned multiplier_limit =
         DIV_ROUNDUP(kernel_size * n_chan * n_filt, reuse_factor) - n_zeros / reuse_factor;
     static const bool store_weights_in_bram = false;
-    static const unsigned strategy = nnet::latency;
+    static const unsigned strategy = nnet::resource;
     static const nnet::conv_implementation implementation = nnet::conv_implementation::linebuffer;
     static const unsigned min_height = 32;
     static const unsigned min_width = 32;
@@ -253,7 +253,7 @@ const ap_uint<config24::filt_height * config24::filt_width> config24::pixels[] =
 // add
 struct config10 : nnet::merge_config {
     static const unsigned n_elem = 32*32*16;
-    static const unsigned reuse_factor = 1;
+    static const unsigned reuse_factor = 128;
 };
 
 // cell_edges_2_op_0
@@ -261,7 +261,7 @@ struct relu_config11 : nnet::activ_config {
     static const unsigned n_in = 16384;
     static const unsigned table_size = 1024;
     static const unsigned io_type = nnet::io_parallel;
-    static const unsigned reuse_factor = 1;
+    static const unsigned reuse_factor = 128;
     typedef cell_edges_2_op_0_table_t table_t;
 };
 
@@ -269,15 +269,15 @@ struct relu_config11 : nnet::activ_config {
 struct config12_mult : nnet::dense_config {
     static const unsigned n_in = 144;
     static const unsigned n_out = 16;
-    static const unsigned reuse_factor = 1;
-    static const unsigned strategy = nnet::latency;
+    static const unsigned reuse_factor = 144;
+    static const unsigned strategy = nnet::resource;
     static const unsigned n_zeros = 0;
     static const unsigned multiplier_limit = DIV_ROUNDUP(n_in * n_out, reuse_factor) - n_zeros / reuse_factor;
     typedef model_default_t accum_t;
     typedef cell_edges_2_op_1_bias_t bias_t;
     typedef cell_edges_2_op_1_weight_t weight_t;
     template<class data_T, class res_T, class CONFIG_T>
-    using kernel = nnet::DenseLatency<data_T, res_T, CONFIG_T>;
+    using kernel = nnet::DenseResource_rf_leq_nin<data_T, res_T, CONFIG_T>;
     template<class x_T, class y_T>
     using product = nnet::product::mult<x_T, y_T>;
 };
@@ -298,12 +298,12 @@ struct config12 : nnet::conv2d_config {
     static const unsigned stride_width = 1;
     static const unsigned out_height = 32;
     static const unsigned out_width = 32;
-    static const unsigned reuse_factor = 1;
+    static const unsigned reuse_factor = 144;
     static const unsigned n_zeros = 0;
     static const unsigned multiplier_limit =
         DIV_ROUNDUP(kernel_size * n_chan * n_filt, reuse_factor) - n_zeros / reuse_factor;
     static const bool store_weights_in_bram = false;
-    static const unsigned strategy = nnet::latency;
+    static const unsigned strategy = nnet::resource;
     static const nnet::conv_implementation implementation = nnet::conv_implementation::linebuffer;
     static const unsigned min_height = 32;
     static const unsigned min_width = 32;
@@ -326,7 +326,7 @@ const ap_uint<config12::filt_height * config12::filt_width> config12::pixels[] =
 // add_1
 struct config14 : nnet::merge_config {
     static const unsigned n_elem = 32*32*16;
-    static const unsigned reuse_factor = 1;
+    static const unsigned reuse_factor = 128;
 };
 
 // cell_edges_5_op_0
@@ -334,7 +334,7 @@ struct relu_config15 : nnet::activ_config {
     static const unsigned n_in = 16384;
     static const unsigned table_size = 1024;
     static const unsigned io_type = nnet::io_parallel;
-    static const unsigned reuse_factor = 1;
+    static const unsigned reuse_factor = 128;
     typedef cell_edges_5_op_0_table_t table_t;
 };
 
@@ -342,15 +342,15 @@ struct relu_config15 : nnet::activ_config {
 struct config16_mult : nnet::dense_config {
     static const unsigned n_in = 144;
     static const unsigned n_out = 16;
-    static const unsigned reuse_factor = 1;
-    static const unsigned strategy = nnet::latency;
+    static const unsigned reuse_factor = 144;
+    static const unsigned strategy = nnet::resource;
     static const unsigned n_zeros = 0;
     static const unsigned multiplier_limit = DIV_ROUNDUP(n_in * n_out, reuse_factor) - n_zeros / reuse_factor;
     typedef model_default_t accum_t;
     typedef cell_edges_5_op_1_bias_t bias_t;
     typedef cell_edges_5_op_1_weight_t weight_t;
     template<class data_T, class res_T, class CONFIG_T>
-    using kernel = nnet::DenseLatency<data_T, res_T, CONFIG_T>;
+    using kernel = nnet::DenseResource_rf_leq_nin<data_T, res_T, CONFIG_T>;
     template<class x_T, class y_T>
     using product = nnet::product::mult<x_T, y_T>;
 };
@@ -371,12 +371,12 @@ struct config16 : nnet::conv2d_config {
     static const unsigned stride_width = 1;
     static const unsigned out_height = 32;
     static const unsigned out_width = 32;
-    static const unsigned reuse_factor = 1;
+    static const unsigned reuse_factor = 144;
     static const unsigned n_zeros = 0;
     static const unsigned multiplier_limit =
         DIV_ROUNDUP(kernel_size * n_chan * n_filt, reuse_factor) - n_zeros / reuse_factor;
     static const bool store_weights_in_bram = false;
-    static const unsigned strategy = nnet::latency;
+    static const unsigned strategy = nnet::resource;
     static const nnet::conv_implementation implementation = nnet::conv_implementation::linebuffer;
     static const unsigned min_height = 32;
     static const unsigned min_width = 32;
@@ -399,7 +399,7 @@ const ap_uint<config16::filt_height * config16::filt_width> config16::pixels[] =
 // add_2
 struct config18 : nnet::merge_config {
     static const unsigned n_elem = 32*32*16;
-    static const unsigned reuse_factor = 1;
+    static const unsigned reuse_factor = 128;
 };
 
 // global_pool
@@ -425,7 +425,7 @@ struct config19 : nnet::pooling2d_config {
     static const bool count_pad = true;
     static const nnet::Pool_Op pool_op = nnet::Average;
     static const nnet::conv_implementation implementation = nnet::conv_implementation::linebuffer;
-    static const unsigned reuse_factor = 1;
+    static const unsigned reuse_factor = 128;
     typedef model_default_t accum_t;
 };
 
@@ -434,8 +434,8 @@ struct config21 : nnet::dense_config {
     static const unsigned n_in = 16;
     static const unsigned n_out = 10;
     static const unsigned io_type = nnet::io_parallel;
-    static const unsigned strategy = nnet::latency;
-    static const unsigned reuse_factor = 1;
+    static const unsigned strategy = nnet::resource;
+    static const unsigned reuse_factor = 160;
     static const unsigned n_zeros = 0;
     static const unsigned n_nonzeros = 160;
     static const unsigned multiplier_limit = DIV_ROUNDUP(n_in * n_out, reuse_factor) - n_zeros / reuse_factor;
@@ -445,7 +445,7 @@ struct config21 : nnet::dense_config {
     typedef classifier_weight_t weight_t;
     typedef layer21_index index_t;
     template<class data_T, class res_T, class CONFIG_T>
-    using kernel = nnet::DenseLatency<data_T, res_T, CONFIG_T>;
+    using kernel = nnet::DenseResource_rf_gt_nin_rem0<data_T, res_T, CONFIG_T>;
     template<class x_T, class y_T>
     using product = nnet::product::mult<x_T, y_T>;
 };
