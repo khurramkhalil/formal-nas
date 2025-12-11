@@ -55,19 +55,21 @@ class SymbolicFPGAModel:
         total_macs = k_sq * cin_cout * hw
         
         # Resources
-        # Note: Z3 ToInt or manual scaling might be needed if coefficients are floats
-        # simplified: LUTS = MACS * 0.15 (15 * 0.01 parallel factor)
-        # We'll stick to integer arithmetic where possible or Z3 Reals
-        
-        # LUTs: 0.15 * MACs
-        luts = total_macs * 15 / 100 
-        
-        # DSP: 0.005 * MACs
-        dsp = total_macs * 5 / 1000 
-        
-        # BRAM: Weights * 16 bits * 1.2 overhead
+        # Note: Must use integer arithmetic to preserve Z3 symbolic types
+        # Division by Python int/float converts Z3.ArithRef to Python float!
+        # CRITICAL: Use integer division (//) or multiply constraints instead
+
+        # LUTs: 0.15 * MACs = (MACs * 15) / 100
+        # Use integer division to keep Z3 type
+        luts = (total_macs * 15) // 100
+
+        # DSP: 0.005 * MACs = (MACs * 5) / 1000
+        # Use integer division to keep Z3 type
+        dsp = (total_macs * 5) // 1000
+
+        # BRAM: Weights * 16 bits * 1.2 overhead = (weights * 16 * 12) / 10
         weights = k_sq * cin_cout
-        bram = weights * 16 * 12 / 10
+        bram = (weights * 16 * 12) // 10
         
         # Power: 0.002 mW per MAC => 2e-9 W per MAC
         # Keeping everything in simplified units (e.g. uW or abstract cost)
@@ -90,14 +92,15 @@ class SymbolicFPGAModel:
         channels: SymbolicNum
     ) -> Dict[str, SymbolicNum]:
         """Pooling is cheap on FPGA (usually valid bit logic or line buffers)."""
-        # Minimal logic
+        # Minimal logic - use integer division to preserve Z3 types
+        total_pixels = input_height * input_width * channels
         return {
-            'luts': input_height * input_width * channels * 1 / 100, # tiny cost
+            'luts': total_pixels // 100,  # tiny cost: 0.01 LUTs per pixel
             'dsp': 0,
             'bram': input_width * channels * 16, # Line buffer
-            'power': input_height * input_width * channels * 1 / 1000,
-            'ops': input_height * input_width * channels, # 1 op per pixel
-            'bytes': input_height * input_width * channels * 2 # Read only
+            'power': total_pixels // 1000,  # Use integer division
+            'ops': total_pixels, # 1 op per pixel
+            'bytes': total_pixels * 2 # Read only
         }
     
     def estimate_add_symbolic(
@@ -109,10 +112,10 @@ class SymbolicFPGAModel:
         """Element-wise add."""
         ops = height * width * channels
         return {
-            'luts': ops * 1 / 10, # Adder cost
+            'luts': ops // 10,  # Adder cost: 0.1 LUTs per element
             'dsp': 0,
             'bram': 0,
-            'power': ops * 1 / 1000,
+            'power': ops // 1000,  # Use integer division
             'ops': ops,
             'bytes': ops * 3 # Read A + Read B + Write C
         }

@@ -98,11 +98,12 @@ class XilinxU55CModel:
         
         # Weights (Storage)
         num_weights = parallel_mults # Same number
-        
-        # BRAM blocks (18Kb or 36Kb). 
+
+        # BRAM blocks (18Kb or 36Kb).
         # Weights (INT8) = num_weights * 8 bits.
-        # 1 BRAM36K = 36000 bits.
-        bram_blocks = (num_weights * 8) / 36000 
+        # 1 BRAM36K = 36864 bits (exact), but use 36000 for safety margin
+        # CRITICAL: Use integer division to preserve Z3 types
+        bram_blocks = (num_weights * 8) // 36000 
         
         return {
             'luts': parallel_mults * self.LUTS_PER_DSP_MAC, # Overhead
@@ -115,23 +116,28 @@ class XilinxU55CModel:
 
     def estimate_pool2d_symbolic(self, h, w, c) -> Dict[str, SymbolicNum]:
         # Pooling is LUT-heavy (comparisons), low DSP
+        # CRITICAL: Use integer arithmetic to preserve Z3 types
+        total_pixels = h * w * c
         return {
-            'luts': h * w * c * 0.1, # Heuristic
+            'luts': total_pixels // 10,  # 0.1 LUTs per pixel (comparators)
             'dsp': 0,
-            'bram': (w * c * 8) / 36000, # Line buffer
+            'bram': (w * c * 8) // 36000,  # Line buffer - use integer division
             'power': 0,
-            'ops': h*w*c,
-            'bytes': h*w*c
+            'ops': total_pixels,
+            'bytes': total_pixels
         }
 
     def estimate_add_symbolic(self, h, w, c) -> Dict[str, SymbolicNum]:
+        # Element-wise addition
+        # CRITICAL: Use integer arithmetic to preserve Z3 types
+        total_ops = h * w * c
         return {
-            'luts': h * w * c * 0.05,
-            'dsp': 0, 
+            'luts': total_ops // 20,  # 0.05 LUTs per add (use integer division)
+            'dsp': 0,
             'bram': 0,
             'power': 0,
-            'ops': h*w*c,
-            'bytes': h*w*c * 2
+            'ops': total_ops,
+            'bytes': total_ops * 2
         }
     
     def estimate_concat_symbolic(self) -> Dict[str, SymbolicNum]:
