@@ -72,13 +72,14 @@ def run_hls_export():
         for layer in config['LayerName'].keys():
             config['LayerName'][layer]['Precision'] = 'ap_fixed<16,6>'
         
-        # Create HLS Project
+        # Create HLS Project with streaming IO to avoid complete array partitioning
         hls_model = hls4ml.converters.convert_from_pytorch_model(
             model,
             input_shape=(1, 3, 32, 32),
             hls_config=config,
             output_dir='hls_project_u55c',
-            part='xcu55c-fsvh2892-2L-e' # Alveo U55C Part Number
+            part='xcu55c-fsvh2892-2L-e', # Alveo U55C Part Number
+            io_type='io_stream'  # Use streaming to avoid massive resource usage
         )
         
         # Compile (C-Simulation)

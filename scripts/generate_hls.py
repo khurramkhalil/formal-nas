@@ -80,23 +80,24 @@ def main():
     # 1. Update Global Defaults
     config['Model']['ReuseFactor'] = 128
     config['Model']['Strategy'] = 'Resource'
-    
+
     # 2. Update Per-Layer Configs
     if 'LayerName' in config:
         for layer_name, layer_config in config['LayerName'].items():
             if isinstance(layer_config, dict):
                 layer_config['ReuseFactor'] = 128
                 layer_config['Strategy'] = 'Resource'
-    
-    # 3. Convert
-    print("Converting to HLS...")
+
+    # 3. Convert with STREAMING IO to avoid complete array partitioning
+    print("Converting to HLS with io_stream mode...")
     hls_model = hls4ml.converters.convert_from_pytorch_model(
         model,
         input_shape=(3, 32, 32),
         hls_config=config,
         output_dir=args.output_dir,
         part='xcu55c-fsvh2892-2L-e', # U55C Part
-        project_name=args.project_name
+        project_name=args.project_name,
+        io_type='io_stream'  # CRITICAL FIX: Use streaming to avoid complete partitioning
     )
     
     # 4. Write
@@ -141,20 +142,39 @@ def main():
                     content = f.read()
                 
                 # Case-Insensitive replacements via simple string ops (covering common cases)
-                # 1. DATAFLOW (Strict check crash)
-                content = content.replace("#pragma HLS DATAFLOW", "//#pragma HLS DATAFLOW")
-                
+                # NOTE: For io_stream mode, DATAFLOW is REQUIRED for proper streaming operation
+                # 1. DATAFLOW - Keep enabled for streaming, only disable for parallel IO if crashes occur
+                # content = content.replace("#pragma HLS DATAFLOW", "//#pragma HLS DATAFLOW")  # DISABLED: Needed for streaming
+
                 # 2. ALLOCATION (Unexpected argument crash)
                 content = content.replace("#pragma HLS allocation", "//#pragma HLS allocation")
-                
+
                 # 3. RESOURCE (Deprecated warning)
                 content = content.replace("#pragma HLS RESOURCE", "//#pragma HLS RESOURCE")
                 content = content.replace("#pragma HLS Resource", "//#pragma HLS Resource") # Case variation
-                
+
                 # 4. INLINE region (Deprecated warning)
                 content = content.replace("#pragma HLS INLINE", "//#pragma HLS INLINE")
-                
-                # 5. SPECIFIC FIX: nnet_pooling.h line 298 (pool_op argument error)
+
+                # 5. Fix complete array partitioning for large intermediate buffers (io_parallel legacy)
+                # For io_stream, intermediate buffers should use FIFOs not complete partitioning
+                if "ARRAY_PARTITION" in content and "complete" in content:
+                    lines_list = content.split('\n')
+                    new_lines = []
+                    for line in lines_list:
+                        # Keep complete partitioning only for input/output, not intermediate layers
+                        if "ARRAY_PARTITION" in line and "complete" in line:
+                            # Check if this is for a large intermediate buffer (contains "layer" and not input/output)
+                            if "layer" in line and "_out" in line:
+                                # Comment out complete partitioning for intermediate layers
+                                new_lines.append("//" + line + "  // Disabled: Use streaming FIFOs instead")
+                            else:
+                                new_lines.append(line)
+                        else:
+                            new_lines.append(line)
+                    content = '\n'.join(new_lines)
+
+                # 6. SPECIFIC FIX: nnet_pooling.h line 298 (pool_op argument error)
                 if "nnet_pooling.h" in fname:
                      lines = content.split('\n')
                      # Remove the specific offending pragma if it exists (usually around line 298)
@@ -163,8 +183,8 @@ def main():
 
                 with open(fpath, "w") as f:
                     f.write(content)
-                
-    print("Patches Applied: ReuseFactor=128, CSIM=Off, CoSim=Off, Pragmas Stripped.")
+
+    print("Patches Applied: io_stream mode, ReuseFactor=128, CSIM=Off, CoSim=Off, Array Partitioning Fixed.")
     # -----------------------------------
     
     # 5. Zip
