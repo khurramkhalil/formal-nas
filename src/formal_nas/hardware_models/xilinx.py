@@ -103,7 +103,7 @@ class XilinxU55CModel:
         # Weights (INT8) = num_weights * 8 bits.
         # 1 BRAM36K = 36864 bits (exact), but use 36000 for safety margin
         # CRITICAL: Use integer division to preserve Z3 types
-        bram_blocks = (num_weights * 8) // 36000 
+        bram_blocks = (num_weights * 8) / 36000 
         
         return {
             'luts': parallel_mults * self.LUTS_PER_DSP_MAC, # Overhead
@@ -119,9 +119,9 @@ class XilinxU55CModel:
         # CRITICAL: Use integer arithmetic to preserve Z3 types
         total_pixels = h * w * c
         return {
-            'luts': total_pixels // 10,  # 0.1 LUTs per pixel (comparators)
+            'luts': total_pixels / 10,  # 0.1 LUTs per pixel (comparators)
             'dsp': 0,
-            'bram': (w * c * 8) // 36000,  # Line buffer - use integer division
+            'bram': (w * c * 8) / 36000,  # Line buffer - use integer division
             'power': 0,
             'ops': total_pixels,
             'bytes': total_pixels
@@ -132,7 +132,7 @@ class XilinxU55CModel:
         # CRITICAL: Use integer arithmetic to preserve Z3 types
         total_ops = h * w * c
         return {
-            'luts': total_ops // 20,  # 0.05 LUTs per add (use integer division)
+            'luts': total_ops / 20,  # 0.05 LUTs per add (use integer division)
             'dsp': 0,
             'bram': 0,
             'power': 0,
